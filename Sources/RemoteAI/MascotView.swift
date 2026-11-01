@@ -34,7 +34,7 @@ struct MascotView: View {
         .animation(MascotDesign.Motion.hover, value: hovering)
         .animation(MascotDesign.Motion.state, value: model.state.accessibilityLabel)
         .onHover { hovering = $0 }
-        .help(model.detail ?? model.state.accessibilityLabel)
+        .help(tooltipText)
         .accessibilityLabel(model.state.accessibilityLabel)
         .accessibilityHint(primaryActionHint)
         .contextMenu {
@@ -48,10 +48,7 @@ struct MascotView: View {
             Divider()
             Button("Stop") { model.stop() }
                 .disabled(model.workspace == nil)
-            Button("Settings…") {
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                NSApp.activate(ignoringOtherApps: true)
-            }
+            Button("Settings…") { model.showSettings() }
             Divider()
             Button("Quit") { NSApp.terminate(nil) }
         }
@@ -71,11 +68,22 @@ struct MascotView: View {
         return false
     }
 
+    private var tooltipText: String {
+        if let detail = model.detail, !detail.isEmpty {
+            return "\(model.state.accessibilityLabel). \(detail)"
+        }
+        return "\(model.state.accessibilityLabel). \(primaryActionHint)"
+    }
+
     private var primaryActionHint: String {
-        switch model.state {
-        case .offline, .error:
+        switch model.primaryActionIntent {
+        case .openSettings:
+            "Open Settings to configure the remote host"
+        case .chooseProject:
+            "Choose the local project folder to mirror"
+        case .startOrReconnect:
             "Start or reconnect the remote Claude Code workspace"
-        case .connecting, .syncing, .thinking, .waiting:
+        case .openWarp:
             "Open the local review and live Claude Code session in Warp"
         }
     }

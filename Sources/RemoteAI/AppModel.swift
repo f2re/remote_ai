@@ -23,6 +23,13 @@ final class AppModel: ObservableObject {
         workspace = try? store.loadWorkspace()
     }
 
+    var primaryActionIntent: MascotPrimaryAction {
+        state.primaryAction(
+            hasConfiguredHost: !config.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            hasWorkspace: workspace != nil
+        )
+    }
+
     func requestNotificationPermission() {
         Task { await notifications.requestAuthorization() }
     }
@@ -56,11 +63,20 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func showSettings() {
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func primaryAction() {
-        switch state {
-        case .offline, .error:
+        switch primaryActionIntent {
+        case .openSettings:
+            showSettings()
+        case .chooseProject:
+            chooseProject()
+        case .startOrReconnect:
             start()
-        case .waiting, .thinking, .syncing, .connecting:
+        case .openWarp:
             openWarp()
         }
     }
