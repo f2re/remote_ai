@@ -75,7 +75,8 @@ struct RemoteRuntimeController: Sendable {
 
     private static let monitorHooks = #"{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["waiting"],"timeout":2}]}],"UserPromptSubmit":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["thinking"],"timeout":2}]}],"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["thinking"],"timeout":2}]}],"PermissionRequest":[{"matcher":"*","hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["waiting"],"timeout":2}]}],"Notification":[{"matcher":"permission_prompt|idle_prompt|agent_needs_input|agent_completed","hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["waiting"],"timeout":2}]}],"Stop":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["waiting"],"timeout":2}]}],"StopFailure":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["error"],"timeout":2}]}],"SessionEnd":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["offline"],"timeout":2}]}]}}"#
 
-    private static let monitorScript = #"#!/usr/bin/env bash
+    private static let monitorScript = #"""
+#!/usr/bin/env bash
 set -u
 cat >/dev/null || true
 state="${1:-waiting}"
@@ -87,7 +88,7 @@ tmp="${file}.tmp.$$"
 printf "%s|%s\n" "$state" "$(date +%s)" > "$tmp"
 mv -f "$tmp" "$file"
 exit 0
-"#
+"""#
 }
 
 struct HookStateParser {
