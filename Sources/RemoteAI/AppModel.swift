@@ -8,15 +8,19 @@ final class AppModel: ObservableObject {
     @Published var config: RemoteAIConfig
     @Published private(set) var workspace: Workspace?
     @Published private(set) var detail: String?
+    @Published private(set) var setupChecks: [SetupCheck] = []
+    @Published private(set) var isTestingSetup = false
 
     private let store = ConfigStore()
     private let mutagen = MutagenController()
     private let runtime = RemoteRuntimeController()
     private let notifications = NotificationService()
+    private let diagnostics = SetupDiagnostics()
     private let runner = ProcessRunner()
     private let warp = WarpIntegration()
 
-    private var monitorTask: Task<Void, Never>?
+    private var actionTask: Task<Void, Never>?
+    private var pollingTask: Task<Void, Never>?
 
     init() {
         config = (try? store.loadConfig()) ?? RemoteAIConfig()
@@ -44,6 +48,7 @@ final class AppModel: ObservableObject {
             let newWorkspace = Workspace.make(localPath: url.path, remoteRoot: config.remoteRoot)
             workspace = newWorkspace
             try? store.saveWorkspace(newWorkspace)
+            setupChecks = []
             detail = newWorkspace.name
         }
     }
@@ -57,9 +62,28 @@ final class AppModel: ObservableObject {
                 workspace = refreshed
                 try store.saveWorkspace(refreshed)
             }
+            setupChecks = []
             detail = "Settings saved"
         } catch {
             setError(error)
+        }
+    }
+
+    func testSetup() {
+        guard !isTestingSetup else { return }
+        isTestingSetup = true
+        Task { [weak self] in
+            guard let self else { return }
+            let checks = await self.diagnostics.run(config: self.config, workspace: self.workspace)
+            self.setupChecks = checks
+            self.isTestingSetup = false
+            if let failure = checks.first(where: { $0.status == .failed }) {
+                self.detail = "\(failure.title): \(failure.detail)"
+            } else if checks.contains(where: { $0.status == .warning }) {
+                self.detail = "Setup is usable with warnings"
+            } else {
+                self.detail = "Setup is ready"
+            }
         }
     }
 
@@ -81,24 +105,43 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func restoreExistingSession() {
+        guard workspace != nil else { return }
+        guard (try? config.validate()) != nil else { return }
+
+        actionTask?.cancel()
+        actionTask = Task { [weak self] in
+            guard let self else { return }
+            self.transition(to: .connecting)
+            self.detail = "Checking existing remote session"
+            let shouldPoll = await self.refresh()
+            if shouldPoll {
+                self.beginPolling()
+            }
+        }
+    }
+
     func start() {
-        monitorTask?.cancel()
-        monitorTask = Task { [weak self] in
+        actionTask?.cancel()
+        pollingTask?.cancel()
+        actionTask = Task { [weak self] in
             guard let self else { return }
             await self.startSequence()
         }
     }
 
     func stop() {
-        monitorTask?.cancel()
-        monitorTask = nil
+        actionTask?.cancel()
+        actionTask = nil
+        pollingTask?.cancel()
+        pollingTask = nil
         Task { [weak self] in
             guard let self, let workspace = self.workspace else { return }
             do {
                 try await self.mutagen.flush(workspace: workspace)
                 try await self.runtime.stopClaude(workspace: workspace, config: self.config)
                 await self.mutagen.pause(workspace: workspace)
-                self.detail = "Stopped"
+                self.detail = "Stopped after a successful sync flush"
                 self.transition(to: .offline)
             } catch {
                 self.setError(error)
@@ -141,7 +184,15 @@ final class AppModel: ObservableObject {
         do {
             try config.validate()
             try store.saveConfig(config)
+
             transition(to: .connecting)
+            detail = "Testing local and remote prerequisites"
+            let checks = await diagnostics.run(config: config, workspace: workspace)
+            setupChecks = checks
+            if let failure = checks.first(where: { $0.status == .failed }) {
+                throw RemoteAIError.preflightFailed("\(failure.title): \(failure.detail)")
+            }
+
             detail = "Connecting to \(config.host)"
             try await runtime.prepare(workspace: workspace, config: config)
 
@@ -151,7 +202,7 @@ final class AppModel: ObservableObject {
             try await mutagen.flush(workspace: workspace)
 
             try await runtime.startClaude(workspace: workspace, config: config)
-            await refresh()
+            _ = await refresh()
             beginPolling()
         } catch {
             setError(error)
@@ -160,20 +211,21 @@ final class AppModel: ObservableObject {
 
     private func beginPolling() {
         let interval = max(1, config.pollIntervalSeconds)
-        monitorTask?.cancel()
-        monitorTask = Task { [weak self] in
+        pollingTask?.cancel()
+        pollingTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                await self.refresh()
+                _ = await self.refresh()
                 try? await Task.sleep(for: .seconds(interval))
             }
         }
     }
 
-    private func refresh() async {
+    @discardableResult
+    private func refresh() async -> Bool {
         guard let workspace else {
             transition(to: .offline)
-            return
+            return false
         }
 
         let sync = await mutagen.status(workspace: workspace)
@@ -181,23 +233,23 @@ final class AppModel: ObservableObject {
         case .conflict(let message):
             detail = message
             transition(to: .error(message))
-            return
+            return false
         case .syncing(let message):
             detail = message
             transition(to: .syncing)
-            return
+            return true
         case .missing:
-            detail = "Mirror is not configured"
+            detail = "Mirror is not configured for this workspace"
             transition(to: .offline)
-            return
+            return false
         case .unavailable(let message):
             detail = message
             transition(to: .offline)
-            return
+            return false
         case .paused:
             detail = "Mirror paused"
             transition(to: .offline)
-            return
+            return false
         case .ready:
             break
         }
@@ -207,13 +259,15 @@ final class AppModel: ObservableObject {
             guard snapshot.sessionExists else {
                 detail = "Claude session is not running"
                 transition(to: .offline)
-                return
+                return false
             }
             detail = PaneStatusParser.lastMeaningfulLine(from: snapshot.pane)
             transition(to: snapshot.reportedState ?? PaneStatusParser.state(from: snapshot.pane))
+            return true
         } catch {
             detail = error.localizedDescription
             transition(to: .offline)
+            return false
         }
     }
 

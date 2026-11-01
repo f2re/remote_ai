@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @preconcurrency UNUser
         mascotWindow = MascotWindowController(model: model)
         mascotWindow?.show()
         model.requestNotificationPermission()
+        model.restoreExistingSession()
     }
 
     func userNotificationCenter(
