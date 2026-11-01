@@ -19,3 +19,20 @@ jobs:
         run: swift build
       - name: Package app
         run: ./build.sh
+
+  screenshots:
+    runs-on: macos-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Render light and dark release screenshots
+        run: ./tools/snap.sh "$RUNNER_TEMP/RemoteAI-shots"
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: RemoteAI-screenshots
+          path: ${{ runner.temp }}/RemoteAI-shots/*.png
+          if-no-files-found: error
+          retention-days: 14

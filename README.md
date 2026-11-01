@@ -1,5 +1,9 @@
 # Remote AI
 
+<p align="center">
+  <img src="Resources/AppIcon.svg" width="144" alt="Remote AI pixel-cloud app icon">
+</p>
+
 Remote AI is a native macOS companion for persistent Claude Code sessions running on a remote server.
 
 The product surface is intentionally small: a floating pixel-cloud mascot reports connection, synchronization and Claude lifecycle state. OpenSSH, Mutagen and tmux do the infrastructure work underneath; Warp or Terminal is opened only when the developer wants to take over.
@@ -25,6 +29,8 @@ swift test
 open ~/Applications/RemoteAI.app
 ```
 
+Use `./build.sh --debug` for a debug bundle or `./build.sh --open` to install and relaunch the current build.
+
 ### Dependencies
 
 - macOS 14+
@@ -33,6 +39,22 @@ open ~/Applications/RemoteAI.app
 - Mutagen (`brew install mutagen-io/mutagen/mutagen`)
 - optional Warp for the preferred review/session handoff
 - remote host with `tmux` and the unmodified `claude` CLI installed and authenticated
+
+## Screenshots
+
+Release screenshots are generated from the real SwiftUI views in light and dark appearance:
+
+```bash
+./tools/snap.sh
+```
+
+CI publishes the PNG set as the `RemoteAI-screenshots` workflow artifact. Version-tag releases also attach a screenshot ZIP next to the macOS application ZIP.
+
+## Releases
+
+Every push/PR runs tests, build, app packaging, and the screenshot gate. Pushing `v*` tags runs the release pipeline and creates a GitHub Release.
+
+The pipeline supports optional Developer ID signing and Apple notarization; without signing secrets it publishes an ad-hoc signed prerelease for development/testing. See `docs/RELEASE.md`.
 
 ## Developing Remote AI with BAMA
 
@@ -71,4 +93,4 @@ Remote AI uses Mutagen `two-way-safe`, surfaces synchronization conflicts instea
 
 ## Development workflow
 
-Feature work goes through a branch + PR, with `swift test`, `swift build`, and app packaging required by macOS CI before merge.
+Feature work goes through a branch + PR, with tests, build, `.app` packaging, and release screenshots required by macOS CI before merge.
