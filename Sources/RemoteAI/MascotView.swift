@@ -40,6 +40,8 @@ struct MascotView: View {
             Button("Choose Project…") { model.chooseProject() }
             Button("Start / Reconnect") { model.start() }
                 .disabled(model.workspace == nil)
+            Button("Open Review in Warp") { model.openWarp() }
+                .disabled(model.workspace == nil)
             Button("Attach in Terminal") { model.openTerminal() }
                 .disabled(model.workspace == nil)
             Divider()
