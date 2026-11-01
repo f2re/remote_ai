@@ -1,18 +1,21 @@
 # Remote AI
 
-A native macOS mascot for remote Claude Code sessions.
+Remote AI is a native macOS companion for persistent Claude Code sessions running on a remote server.
 
-Remote AI keeps the interaction surface deliberately small: a floating mascot reports connection/sync/Claude state, while OpenSSH, Mutagen, and tmux do the actual work underneath.
+The product surface is intentionally small: a floating pixel-cloud mascot reports connection, synchronization and Claude lifecycle state. OpenSSH, Mutagen and tmux do the infrastructure work underneath; Warp or Terminal is opened only when the developer wants to take over.
 
-## Architecture
+## What it does
 
-- local code stays in your normal project folder
-- Mutagen mirrors it to the remote host
-- Claude Code runs inside remote tmux
-- closing the terminal or losing the Mac connection does not stop Claude
-- reconnect resumes synchronization and status monitoring
+- keeps code in the normal local project folder
+- mirrors the working tree to a remote host with Mutagen `two-way-safe`
+- starts or reuses Claude Code inside a named remote tmux session
+- survives terminal closure and temporary Mac/network disconnects
+- mirrors remote edits back to the Mac after reconnect
+- shows `offline`, `connecting`, `syncing`, `thinking`, `waiting`, and `error` through the pixel-cloud mascot
+- opens a Warp review layout with local Git changes beside the live Claude tmux session
+- sends macOS notifications when Claude is waiting for input
 
-The agent framework is BAMA, pinned as `vendor/bama`.
+## Build and run
 
 ```bash
 git clone --recurse-submodules https://github.com/f2re/remote_ai.git
@@ -22,13 +25,41 @@ swift test
 open ~/Applications/RemoteAI.app
 ```
 
-## MVP dependencies
+### Dependencies
 
 - macOS 14+
 - Swift 6 toolchain
 - OpenSSH (built into macOS)
 - Mutagen (`brew install mutagen-io/mutagen/mutagen`)
-- remote host with `tmux` and the unmodified `claude` CLI installed/authenticated
+- optional Warp for the preferred review/session handoff
+- remote host with `tmux` and the unmodified `claude` CLI installed and authenticated
+
+## Developing Remote AI with BAMA
+
+The macOS agent framework is [BAMA](https://github.com/daveebbelaar/bama), pinned as the `vendor/bama` git submodule. BAMA is not copied into local prompts: its own router and skills are the source of truth.
+
+Start Claude Code with the vendored BAMA plugin:
+
+```bash
+./scripts/claude-bama.sh
+```
+
+That command initializes the submodule and launches:
+
+```bash
+claude --plugin-dir vendor/bama
+```
+
+Start product work from `vendor/bama/skills/start/bama/SKILL.md`. The current mascot pass uses `ux-design`, `mac-design`, `design-system`, `design-kit`, `build-and-verify`, and `improve-loop`. See `docs/BAMA-DELEGATION.md` for the work-packet map.
+
+## Design
+
+Remote AI aims for a calm, quiet, confident macOS feel. The custom identity is limited to the pixel-cloud mascot; menus, Settings, notifications and system behavior remain native.
+
+- `design/DESIGN-SYSTEM.md`: app-wide visual and motion rules
+- `design/KIT.md`: pixel-cloud component specification
+- `docs/BRIEF.md`: product and UX contract
+- `docs/GLOSSARY.md`: stable user-facing vocabulary
 
 ## SSH identity note
 
@@ -36,6 +67,8 @@ Remote AI can pass an explicit identity file to direct SSH commands. Mutagen its
 
 ## Safety defaults
 
-Remote AI uses Mutagen `two-way-safe`, does not silently resolve sync conflicts, and never reads or stores Claude OAuth/session credentials.
+Remote AI uses Mutagen `two-way-safe`, surfaces synchronization conflicts instead of silently resolving them, keeps `.git` local, uses normal OpenSSH host-key trust, and never reads or stores Claude OAuth/session credentials.
 
-Development is currently on `feat/remote-ai-mascot-mvp`.
+## Development workflow
+
+Feature work goes through a branch + PR, with `swift test`, `swift build`, and app packaging required by macOS CI before merge.

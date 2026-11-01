@@ -7,7 +7,12 @@ final class MascotWindowController {
 
     init(model: AppModel) {
         panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 76, height: 76),
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: MascotDesign.Metric.panelWidth,
+                height: MascotDesign.Metric.panelHeight
+            ),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -19,13 +24,16 @@ final class MascotWindowController {
         panel.hidesOnDeactivate = false
         panel.isMovableByWindowBackground = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.contentView = NSHostingView(rootView: MascotView(model: model).padding(4))
+        panel.contentView = NSHostingView(rootView: MascotView(model: model).padding(2))
     }
 
     func show() {
         if let screen = NSScreen.main {
             let frame = screen.visibleFrame
-            panel.setFrameOrigin(NSPoint(x: frame.maxX - 92, y: frame.maxY - 92))
+            panel.setFrameOrigin(NSPoint(
+                x: frame.maxX - MascotDesign.Metric.panelWidth - 14,
+                y: frame.maxY - MascotDesign.Metric.panelHeight - 14
+            ))
         }
         panel.orderFrontRegardless()
     }
