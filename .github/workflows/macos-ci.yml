@@ -1,0 +1,21 @@
+name: macOS CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Toolchain
+        run: swift --version
+      - name: Tests
+        run: swift test
+      - name: Build
+        run: swift build
+      - name: Package app
+        run: ./build.sh
