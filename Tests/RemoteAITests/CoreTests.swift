@@ -33,6 +33,16 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(PaneStatusParser.state(from: pane), .waiting)
     }
 
+    func testHookStateParserPrefersLifecycleSignal() {
+        XCTAssertEqual(HookStateParser.state(fromMarkerLine: "__RA_STATE__=thinking|1793526000"), .thinking)
+        XCTAssertEqual(HookStateParser.state(fromMarkerLine: "__RA_STATE__=waiting|1793526001"), .waiting)
+        XCTAssertEqual(HookStateParser.state(fromMarkerLine: "__RA_STATE__=offline|1793526002"), .offline)
+    }
+
+    func testHookStateParserMapsFailure() {
+        XCTAssertEqual(HookStateParser.state(fromMarkerLine: "__RA_STATE__=error|1793526000"), .error("Claude Code reported a turn failure"))
+    }
+
     func testMutagenConflictWinsStatusPrecedence() {
         let output = "Name: demo\nStatus: Watching for changes\nConflicts: 1\n"
         XCTAssertEqual(MutagenStatusParser.parse(output), .conflict("Mutagen reports a synchronization conflict"))

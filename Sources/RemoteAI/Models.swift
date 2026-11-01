@@ -119,6 +119,7 @@ enum SyncHealth: Equatable, Sendable {
 struct RuntimeSnapshot: Equatable, Sendable {
     var sessionExists: Bool
     var pane: String
+    var reportedState: MascotState?
 }
 
 enum RemoteAIError: LocalizedError, Equatable {

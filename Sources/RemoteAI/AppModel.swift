@@ -16,7 +16,6 @@ final class AppModel: ObservableObject {
     private let runner = ProcessRunner()
 
     private var monitorTask: Task<Void, Never>?
-    private var previousState: MascotState = .offline
 
     init() {
         config = (try? store.loadConfig()) ?? RemoteAIConfig()
@@ -179,7 +178,7 @@ final class AppModel: ObservableObject {
                 return
             }
             detail = PaneStatusParser.lastMeaningfulLine(from: snapshot.pane)
-            transition(to: PaneStatusParser.state(from: snapshot.pane))
+            transition(to: snapshot.reportedState ?? PaneStatusParser.state(from: snapshot.pane))
         } catch {
             detail = error.localizedDescription
             transition(to: .offline)
@@ -188,7 +187,6 @@ final class AppModel: ObservableObject {
 
     private func transition(to newState: MascotState) {
         let oldState = state
-        previousState = oldState
         state = newState
 
         if config.notifyWhenWaiting,
