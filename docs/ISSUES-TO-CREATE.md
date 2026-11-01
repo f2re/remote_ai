@@ -1,1 +1,0 @@
-Delegated work packets are tracked in GitHub Issues.

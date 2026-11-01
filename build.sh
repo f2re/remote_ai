@@ -4,6 +4,7 @@ set -euo pipefail
 CONFIGURATION="${CONFIGURATION:-release}"
 INSTALL=0
 OPEN_APP=0
+UNIVERSAL_BUILD="${UNIVERSAL_BUILD:-1}"
 
 for arg in "$@"; do
   case "$arg" in
@@ -27,8 +28,6 @@ done
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-swift build -c "$CONFIGURATION"
-BIN_DIR="$(swift build -c "$CONFIGURATION" --show-bin-path)"
 APP_DIR="$ROOT/.build/app/RemoteAI.app"
 CONTENTS="$APP_DIR/Contents"
 ICON_SOURCE="$ROOT/.build/AppIcon-1024.png"
@@ -37,7 +36,27 @@ ICNS="$ROOT/.build/AppIcon.icns"
 
 rm -rf "$APP_DIR"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
-cp "$BIN_DIR/RemoteAI" "$CONTENTS/MacOS/RemoteAI"
+
+if [[ "$CONFIGURATION" == "release" && "$UNIVERSAL_BUILD" == "1" ]]; then
+  ARM_SCRATCH="$ROOT/.build/universal-arm64"
+  X86_SCRATCH="$ROOT/.build/universal-x86_64"
+
+  swift build -c release --arch arm64 --scratch-path "$ARM_SCRATCH"
+  swift build -c release --arch x86_64 --scratch-path "$X86_SCRATCH"
+
+  ARM_BIN_DIR="$(swift build -c release --arch arm64 --scratch-path "$ARM_SCRATCH" --show-bin-path)"
+  X86_BIN_DIR="$(swift build -c release --arch x86_64 --scratch-path "$X86_SCRATCH" --show-bin-path)"
+
+  /usr/bin/lipo -create \
+    "$ARM_BIN_DIR/RemoteAI" \
+    "$X86_BIN_DIR/RemoteAI" \
+    -output "$CONTENTS/MacOS/RemoteAI"
+else
+  swift build -c "$CONFIGURATION"
+  BIN_DIR="$(swift build -c "$CONFIGURATION" --show-bin-path)"
+  cp "$BIN_DIR/RemoteAI" "$CONTENTS/MacOS/RemoteAI"
+fi
+
 cp "$ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
 
 if [[ -n "${APP_VERSION:-}" ]]; then

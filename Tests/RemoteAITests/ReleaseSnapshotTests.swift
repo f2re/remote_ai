@@ -52,6 +52,7 @@ final class ReleaseSnapshotTests: XCTestCase {
             model.config.host = "buildbox.example"
             model.config.user = "developer"
             model.config.port = 22
+            model.config.sshKeyPath = ""
             model.config.remoteRoot = ".remote-ai/workspaces"
             model.config.pollIntervalSeconds = 3
             model.config.notifyWhenWaiting = true
@@ -59,7 +60,7 @@ final class ReleaseSnapshotTests: XCTestCase {
             try render(
                 SettingsSnapshotSurface(model: model)
                     .environment(\.colorScheme, scheme),
-                size: CGSize(width: 640, height: 720),
+                size: CGSize(width: 680, height: 900),
                 to: output.appendingPathComponent("settings-\(suffix).png")
             )
         }
