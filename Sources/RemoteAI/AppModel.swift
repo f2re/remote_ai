@@ -14,6 +14,7 @@ final class AppModel: ObservableObject {
     private let runtime = RemoteRuntimeController()
     private let notifications = NotificationService()
     private let runner = ProcessRunner()
+    private let warp = WarpIntegration()
 
     private var monitorTask: Task<Void, Never>?
 
@@ -60,7 +61,7 @@ final class AppModel: ObservableObject {
         case .offline, .error:
             start()
         case .waiting, .thinking, .syncing, .connecting:
-            openTerminal()
+            openWarp()
         }
     }
 
@@ -86,6 +87,21 @@ final class AppModel: ObservableObject {
             } catch {
                 self.setError(error)
             }
+        }
+    }
+
+    func openWarp() {
+        guard let workspace else {
+            chooseProject()
+            return
+        }
+        let command = runtime.attachCommand(workspace: workspace, config: config)
+        do {
+            try warp.open(workspace: workspace, config: config, attachCommand: command)
+            detail = "Opened \(workspace.name) in Warp"
+        } catch {
+            detail = "Warp unavailable: \(error.localizedDescription). Opening Terminal instead."
+            openTerminal()
         }
     }
 
