@@ -72,4 +72,35 @@ final class CoreTests: XCTestCase {
         config.host = "server;rm"
         XCTAssertThrowsError(try config.validate())
     }
+
+    func testWarpConfigBuildsLocalReviewAndLiveClaudePanes() {
+        var config = RemoteAIConfig()
+        config.host = "buildbox.example"
+        config.user = "dev"
+        let workspace = Workspace.make(localPath: "/Users/test/My Project", remoteRoot: ".remote-ai/workspaces")
+        let attach = "/usr/bin/ssh -t dev@buildbox.example 'tmux attach-session -t rai-demo'"
+
+        let output = WarpTabConfigBuilder.content(workspace: workspace, config: config, attachCommand: attach)
+
+        XCTAssertTrue(output.contains("split = \"horizontal\""))
+        XCTAssertTrue(output.contains("children = [\"review\", \"claude\"]"))
+        XCTAssertTrue(output.contains("directory = \"/Users/test/My Project\""))
+        XCTAssertTrue(output.contains("git status --short --branch"))
+        XCTAssertTrue(output.contains("git diff --name-status"))
+        XCTAssertTrue(output.contains("git ls-files --others --exclude-standard"))
+        XCTAssertTrue(output.contains("is_focused = true"))
+        XCTAssertTrue(output.contains("tmux attach-session"))
+    }
+
+    func testWarpConfigStemIsStableAndURLSafe() {
+        let workspace = Workspace.make(localPath: "/Users/test/Projects/My Demo", remoteRoot: ".remote-ai/workspaces")
+        let stem = WarpTabConfigBuilder.fileStem(for: workspace)
+        XCTAssertTrue(stem.hasPrefix("remote_ai_"))
+        XCTAssertFalse(stem.contains("-"))
+        XCTAssertFalse(stem.contains(" "))
+    }
+
+    func testTOMLStringEscapesQuotesAndBackslashes() {
+        XCTAssertEqual(TOML.string("a\\b\"c"), "\"a\\\\b\\\"c\"")
+    }
 }
