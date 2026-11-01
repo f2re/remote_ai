@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - "release/**"
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Artifact version for a dry-run build"
+        required: true
+        default: "0.1.0-dev"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    env:
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Resolve version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="0.1.0-rc.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Tests
+        run: swift test
+
+      - name: Import Developer ID certificate
+        if: env.MACOS_CERTIFICATE_P12 != ''
+        shell: bash
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/remote-ai-certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/remote-ai-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+
+          printf '%s' "$MACOS_CERTIFICATE_P12" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -1)"
+          if [[ -z "$IDENTITY" ]]; then
+            echo "A Developer ID Application identity was not found in the supplied certificate." >&2
+            exit 1
+          fi
+
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "SIGNED_RELEASE=1" >> "$GITHUB_ENV"
+
+      - name: Build app bundle
+        run: ./build.sh
+
+      - name: Render release screenshots
+        run: ./tools/snap.sh "$RUNNER_TEMP/RemoteAI-shots"
+
+      - name: Package app for notarization
+        shell: bash
+        run: |
+          ZIP="RemoteAI-${APP_VERSION}-macOS.zip"
+          rm -f "$ZIP"
+          ditto -c -k --sequesterRsrc --keepParent ".build/app/RemoteAI.app" "$ZIP"
+          echo "APP_ZIP=$ZIP" >> "$GITHUB_ENV"
+
+      - name: Notarize and staple
+        if: env.MACOS_CERTIFICATE_P12 != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_PASSWORD != ''
+        shell: bash
+        run: |
+          xcrun notarytool submit "$APP_ZIP" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+          xcrun stapler staple ".build/app/RemoteAI.app"
+          xcrun stapler validate ".build/app/RemoteAI.app"
+
+          rm -f "$APP_ZIP"
+          ditto -c -k --sequesterRsrc --keepParent ".build/app/RemoteAI.app" "$APP_ZIP"
+          echo "NOTARIZED_RELEASE=1" >> "$GITHUB_ENV"
+
+      - name: Package screenshots and checksums
+        shell: bash
+        run: |
+          SCREENSHOTS_ZIP="RemoteAI-${APP_VERSION}-screenshots.zip"
+          ditto -c -k --keepParent "$RUNNER_TEMP/RemoteAI-shots" "$SCREENSHOTS_ZIP"
+          shasum -a 256 "$APP_ZIP" "$SCREENSHOTS_ZIP" > SHA256SUMS.txt
+          echo "SCREENSHOTS_ZIP=$SCREENSHOTS_ZIP" >> "$GITHUB_ENV"
+
+      - name: Upload release candidate artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: RemoteAI-${{ env.APP_VERSION }}-release
+          path: |
+            ${{ env.APP_ZIP }}
+            ${{ env.SCREENSHOTS_ZIP }}
+            SHA256SUMS.txt
+            ${{ runner.temp }}/RemoteAI-shots/*.png
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          EXTRA=()
+          if [[ "${NOTARIZED_RELEASE:-0}" != "1" ]]; then
+            EXTRA+=(--prerelease)
+          fi
+
+          gh release create "$GITHUB_REF_NAME" \
+            "$APP_ZIP" \
+            "$SCREENSHOTS_ZIP" \
+            SHA256SUMS.txt \
+            --title "Remote AI $GITHUB_REF_NAME" \
+            --generate-notes \
+            "${EXTRA[@]}"
