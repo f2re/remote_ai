@@ -16,8 +16,8 @@ struct RemoteRuntimeController: Sendable {
         let scriptPath = "\(plugin)/scripts/state.sh"
 
         let command = [
-            "command -v tmux >/dev/null 2>&1 || { echo 'tmux is not installed'; exit 41; }",
-            "command -v claude >/dev/null 2>&1 || { echo 'claude is not installed'; exit 42; }",
+            "command -v tmux >/dev/null 2>&1 || { echo 'tmux не установлен'; exit 41; }",
+            "command -v claude >/dev/null 2>&1 || { echo 'claude не установлен'; exit 42; }",
             "mkdir -p -- \(path) \(plugin)/.claude-plugin \(plugin)/hooks \(plugin)/scripts \(stateRoot)",
             "printf %s \(Shell.quote(Self.monitorPluginManifest)) > \(manifestPath)",
             "printf %s \(Shell.quote(Self.monitorHooks)) > \(hooksPath)",
@@ -71,7 +71,7 @@ struct RemoteRuntimeController: Sendable {
         "\(Self.stateRoot)/\(workspace.id).state"
     }
 
-    private static let monitorPluginManifest = #"{"name":"remote-ai-status","displayName":"Remote AI Status","version":"0.1.0","description":"Local status bridge for the Remote AI macOS mascot","author":{"name":"Remote AI"}}"#
+    private static let monitorPluginManifest = #"{"name":"remote-ai-status","displayName":"Статус Remote AI","version":"0.2.1","description":"Локальный мост состояний для macOS-маскота Remote AI","author":{"name":"Remote AI"}}"#
 
     private static let monitorHooks = #"{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["waiting"],"timeout":2}]}],"UserPromptSubmit":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["thinking"],"timeout":2}]}],"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["thinking"],"timeout":2}]}],"PermissionRequest":[{"matcher":"*","hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["waiting"],"timeout":2}]}],"Notification":[{"matcher":"permission_prompt|idle_prompt|agent_needs_input|agent_completed","hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["waiting"],"timeout":2}]}],"Stop":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["waiting"],"timeout":2}]}],"StopFailure":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["error"],"timeout":2}]}],"SessionEnd":[{"hooks":[{"type":"command","command":"${CLAUDE_PLUGIN_ROOT}/scripts/state.sh","args":["offline"],"timeout":2}]}]}}"#
 
@@ -100,7 +100,7 @@ struct HookStateParser {
         case "thinking": return .thinking
         case "waiting": return .waiting
         case "offline": return .offline
-        case "error": return .error("Claude Code reported a turn failure")
+        case "error": return .error("Claude Code сообщил об ошибке выполнения задачи")
         default: return nil
         }
     }
@@ -113,7 +113,11 @@ struct PaneStatusParser {
         "thinking",
         "running",
         "working…",
-        "working..."
+        "working...",
+        "размышляет",
+        "выполняется",
+        "работает",
+        "обрабатывает"
     ]
 
     private static let inputMarkers = [
@@ -121,7 +125,12 @@ struct PaneStatusParser {
         "allow this",
         "press enter",
         "waiting for input",
-        "yes, and don't ask"
+        "yes, and don't ask",
+        "продолжить",
+        "разрешить",
+        "нажмите enter",
+        "ожидает ввода",
+        "больше не спрашивать"
     ]
 
     static func state(from pane: String) -> MascotState {

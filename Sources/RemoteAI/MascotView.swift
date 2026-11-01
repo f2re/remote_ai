@@ -38,19 +38,19 @@ struct MascotView: View {
         .accessibilityLabel(model.state.accessibilityLabel)
         .accessibilityHint(primaryActionHint)
         .contextMenu {
-            Button("Choose Project…") { model.chooseProject() }
-            Button("Start / Reconnect") { model.start() }
+            Button("Выбрать проект…") { model.chooseProject() }
+            Button("Запустить / переподключить") { model.start() }
                 .disabled(model.workspace == nil)
-            Button("Open Review in Warp") { model.openWarp() }
+            Button("Открыть обзор в Warp") { model.openWarp() }
                 .disabled(model.workspace == nil)
-            Button("Attach in Terminal") { model.openTerminal() }
+            Button("Подключиться в Terminal") { model.openTerminal() }
                 .disabled(model.workspace == nil)
             Divider()
-            Button("Stop") { model.stop() }
+            Button("Остановить") { model.stop() }
                 .disabled(model.workspace == nil)
-            Button("Settings…") { model.showSettings() }
+            Button("Настройки…") { model.showSettings() }
             Divider()
-            Button("Quit") { NSApp.terminate(nil) }
+            Button("Завершить Remote AI") { NSApp.terminate(nil) }
         }
         .task {
             while !Task.isCancelled {
@@ -78,13 +78,13 @@ struct MascotView: View {
     private var primaryActionHint: String {
         switch model.primaryActionIntent {
         case .openSettings:
-            "Open Settings to configure the remote host"
+            "Открыть настройки и указать удалённый сервер"
         case .chooseProject:
-            "Choose the local project folder to mirror"
+            "Выбрать локальную папку проекта для синхронизации"
         case .startOrReconnect:
-            "Start or reconnect the remote Claude Code workspace"
+            "Запустить или восстановить удалённое рабочее пространство Claude Code"
         case .openWarp:
-            "Open the local review and live Claude Code session in Warp"
+            "Открыть локальный обзор и текущую сессию Claude Code в Warp"
         }
     }
 }

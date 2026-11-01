@@ -43,13 +43,13 @@ final class AppModel: ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Use Project"
+        panel.prompt = "Выбрать проект"
         if panel.runModal() == .OK, let url = panel.url {
             let newWorkspace = Workspace.make(localPath: url.path, remoteRoot: config.remoteRoot)
             workspace = newWorkspace
             try? store.saveWorkspace(newWorkspace)
             setupChecks = []
-            detail = newWorkspace.name
+            detail = "Выбран проект: \(newWorkspace.name)"
         }
     }
 
@@ -63,7 +63,7 @@ final class AppModel: ObservableObject {
                 try store.saveWorkspace(refreshed)
             }
             setupChecks = []
-            detail = "Settings saved"
+            detail = "Настройки сохранены"
         } catch {
             setError(error)
         }
@@ -80,9 +80,9 @@ final class AppModel: ObservableObject {
             if let failure = checks.first(where: { $0.status == .failed }) {
                 self.detail = "\(failure.title): \(failure.detail)"
             } else if checks.contains(where: { $0.status == .warning }) {
-                self.detail = "Setup is usable with warnings"
+                self.detail = "Настройка работоспособна, но требует внимания"
             } else {
-                self.detail = "Setup is ready"
+                self.detail = "Настройка готова к работе"
             }
         }
     }
@@ -113,7 +113,7 @@ final class AppModel: ObservableObject {
         actionTask = Task { [weak self] in
             guard let self else { return }
             self.transition(to: .connecting)
-            self.detail = "Checking existing remote session"
+            self.detail = "Проверяем существующую удалённую сессию"
             let shouldPoll = await self.refresh()
             if shouldPoll {
                 self.beginPolling()
@@ -141,7 +141,7 @@ final class AppModel: ObservableObject {
                 try await self.mutagen.flush(workspace: workspace, config: self.config)
                 try await self.runtime.stopClaude(workspace: workspace, config: self.config)
                 await self.mutagen.pause(workspace: workspace, config: self.config)
-                self.detail = "Stopped after a successful sync flush"
+                self.detail = "Сессия остановлена после успешной синхронизации"
                 self.transition(to: .offline)
             } catch {
                 self.setError(error)
@@ -157,9 +157,9 @@ final class AppModel: ObservableObject {
         let command = runtime.attachCommand(workspace: workspace, config: config)
         do {
             try warp.open(workspace: workspace, config: config, attachCommand: command)
-            detail = "Opened \(workspace.name) in Warp"
+            detail = "Проект \(workspace.name) открыт в Warp"
         } catch {
-            detail = "Warp unavailable: \(error.localizedDescription). Opening Terminal instead."
+            detail = "Warp недоступен: \(error.localizedDescription). Открываем Terminal."
             openTerminal()
         }
     }
@@ -186,18 +186,18 @@ final class AppModel: ObservableObject {
             try store.saveConfig(config)
 
             transition(to: .connecting)
-            detail = "Testing local and remote prerequisites"
+            detail = "Проверяем локальные и удалённые зависимости"
             let checks = await diagnostics.run(config: config, workspace: workspace)
             setupChecks = checks
             if let failure = checks.first(where: { $0.status == .failed }) {
                 throw RemoteAIError.preflightFailed("\(failure.title): \(failure.detail)")
             }
 
-            detail = "Connecting to \(config.host)"
+            detail = "Подключаемся к \(config.host)"
             try await runtime.prepare(workspace: workspace, config: config)
 
             transition(to: .syncing)
-            detail = "Preparing mirror"
+            detail = "Подготавливаем зеркало проекта"
             try await mutagen.ensureSession(workspace: workspace, config: config)
             try await mutagen.flush(workspace: workspace, config: config)
 
@@ -239,7 +239,7 @@ final class AppModel: ObservableObject {
             transition(to: .syncing)
             return true
         case .missing:
-            detail = "Mirror is not configured for this server route"
+            detail = "Зеркало проекта не настроено для этого маршрута сервера"
             transition(to: .offline)
             return false
         case .unavailable(let message):
@@ -247,7 +247,7 @@ final class AppModel: ObservableObject {
             transition(to: .offline)
             return false
         case .paused:
-            detail = "Mirror paused"
+            detail = "Синхронизация приостановлена"
             transition(to: .offline)
             return false
         case .ready:
@@ -257,17 +257,35 @@ final class AppModel: ObservableObject {
         do {
             let snapshot = try await runtime.poll(workspace: workspace, config: config)
             guard snapshot.sessionExists else {
-                detail = "Claude session is not running"
+                detail = "Сессия Claude Code не запущена"
                 transition(to: .offline)
                 return false
             }
-            detail = PaneStatusParser.lastMeaningfulLine(from: snapshot.pane)
-            transition(to: snapshot.reportedState ?? PaneStatusParser.state(from: snapshot.pane))
+            let resolvedState = snapshot.reportedState ?? PaneStatusParser.state(from: snapshot.pane)
+            detail = statusDetail(for: resolvedState)
+            transition(to: resolvedState)
             return true
         } catch {
             detail = error.localizedDescription
             transition(to: .offline)
             return false
+        }
+    }
+
+    private func statusDetail(for state: MascotState) -> String {
+        switch state {
+        case .offline:
+            "Удалённая сессия не запущена"
+        case .connecting:
+            "Подключаемся к удалённому серверу"
+        case .syncing:
+            "Синхронизируем файлы проекта"
+        case .thinking:
+            "Claude Code выполняет задачу"
+        case .waiting:
+            "Claude Code ожидает ввода"
+        case .error(let message):
+            message
         }
     }
 

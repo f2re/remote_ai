@@ -24,12 +24,12 @@ final class CoreTests: XCTestCase {
     }
 
     func testPaneParserDetectsThinkingNearTail() {
-        let pane = "previous output\nWorking…\nesc to interrupt\n"
+        let pane = "предыдущий вывод\nРаботает…\nнажмите esc для остановки\n"
         XCTAssertEqual(PaneStatusParser.state(from: pane), .thinking)
     }
 
     func testPaneParserDefaultsToWaitingWhenIdle() {
-        let pane = "Done. Tests pass.\n>\n"
+        let pane = "Готово. Тесты пройдены.\n>\n"
         XCTAssertEqual(PaneStatusParser.state(from: pane), .waiting)
     }
 
@@ -40,12 +40,12 @@ final class CoreTests: XCTestCase {
     }
 
     func testHookStateParserMapsFailure() {
-        XCTAssertEqual(HookStateParser.state(fromMarkerLine: "__RA_STATE__=error|1793526000"), .error("Claude Code reported a turn failure"))
+        XCTAssertEqual(HookStateParser.state(fromMarkerLine: "__RA_STATE__=error|1793526000"), .error("Claude Code сообщил об ошибке выполнения задачи"))
     }
 
     func testMutagenConflictWinsStatusPrecedence() {
         let output = "Name: demo\nStatus: Watching for changes\nConflicts: 1\n"
-        XCTAssertEqual(MutagenStatusParser.parse(output), .conflict("Mutagen reports a synchronization conflict"))
+        XCTAssertEqual(MutagenStatusParser.parse(output), .conflict("Mutagen обнаружил конфликт синхронизации."))
     }
 
     func testMutagenZeroConflictsIsReady() {
@@ -85,6 +85,7 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(output.contains("split = \"horizontal\""))
         XCTAssertTrue(output.contains("children = [\"review\", \"claude\"]"))
         XCTAssertTrue(output.contains("directory = \"/Users/test/My Project\""))
+        XCTAssertTrue(output.contains("Состояние Git"))
         XCTAssertTrue(output.contains("git status --short --branch"))
         XCTAssertTrue(output.contains("git diff --name-status"))
         XCTAssertTrue(output.contains("git ls-files --others --exclude-standard"))

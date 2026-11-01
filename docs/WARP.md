@@ -1,61 +1,51 @@
-# Warp integration
+# Интеграция с Warp
 
-Remote AI treats Warp as the interactive handoff surface, not as another backend.
+Remote AI использует Warp как интерактивную поверхность передачи управления, а не как дополнительный backend.
 
-## One-click flow
+## Один клик
 
-When Claude is active or waiting, clicking the mascot opens a generated Warp Tab Config for the selected workspace.
+Когда Claude активен или ожидает пользователя, клик по маскоту открывает generated Warp Tab Config выбранного workspace.
 
 ```text
-Remote AI mascot
-      │ click
+маскот Remote AI
+      │ клик
       ▼
 ~/.warp/tab_configs/remote_ai_<workspace>.toml
       │ warp://tab_config/<workspace>
       ▼
 ┌────────────────────────────┬─────────────────────────────────┐
-│ Local review               │ Live Claude                    │
-│ real local checkout        │ SSH -> existing remote tmux    │
+│ Локальный обзор            │ Текущий Claude Code             │
+│ реальный local checkout    │ SSH → существующий remote tmux │
 │                            │                                 │
-│ git status                 │ same Claude Code process       │
-│ changed tracked files      │ existing transcript            │
+│ git status                 │ тот же Claude Code process      │
+│ изменённые tracked files   │ существующий transcript         │
 │ untracked files            │ prompts / approvals / steering │
 │ diff --stat                │                                 │
 └────────────────────────────┴─────────────────────────────────┘
 ```
 
-The right pane joins the existing tmux session. It never starts a second Claude process. Closing Warp detaches the terminal client while Claude continues running on the remote host.
+Правая панель присоединяется к существующей tmux-сессии и не запускает второй Claude. Закрытие Warp только отсоединяет terminal client.
 
-The left pane uses the real local Git checkout after Mutagen synchronization. `.git` is intentionally not synchronized to the server.
+Левая панель использует настоящий локальный Git checkout после синхронизации Mutagen. `.git` не синхронизируется на сервер.
 
-## Why Tab Config instead of only a warp:// URL
+## Почему Tab Config
 
-Warp URI links can open windows, tabs and saved Tab Configs, but a plain URI does not execute an arbitrary startup command. A generated Tab Config is therefore the correct bridge: it defines the split layout and commands, while `warp://tab_config/...` is only the launcher.
+Обычный `warp://` URI не является безопасным каналом произвольной startup-команды. Generated Tab Config задаёт layout и команды, а URI только открывает named config.
 
-## Review workflow
+## Локальный обзор
 
-The local pane prints paths as ordinary terminal output. Warp recognizes file paths, so the user can open changed files directly in Warp's editor. The pane remains a normal shell after the summary commands finish, which allows local tests, Git inspection, or manual edits without leaving the handoff workspace.
+Remote AI формирует русские заголовки: проект, сервер, состояние Git, изменённые отслеживаемые файлы, неотслеживаемые файлы и сводка изменений. Сами Git commands/paths не переводятся. После выводов панель остаётся обычным shell для тестов и ручной проверки.
 
-The live Claude pane is focused initially. The user can type directly into the existing Claude Code conversation, approve actions, interrupt work, or give a follow-up task.
+Правая панель сфокусирована изначально: пользователь продолжает существующий разговор Claude Code, подтверждает действия или задаёт следующую команду.
 
-## Remote Control
+## Warp Remote Control
 
-Warp can publish a running third-party Claude Code session through its Remote Control feature. This is useful as an optional second layer after Remote AI has opened the session in Warp: the user can monitor and steer it from a browser, phone, or another computer.
+Warp может публиковать third-party Claude Code session через Remote Control. Remote AI не включает эту функцию автоматически, поскольку она меняет privacy boundary и может отправлять live terminal session в облако Warp. Возможная будущая интеграция должна быть только явным действием пользователя с ясным предупреждением.
 
-Remote AI should not silently enable Warp Remote Control. Publishing uploads the live terminal/agent session to Warp's cloud and changes the privacy boundary. If we expose this later, it must be an explicit user action with clear disclosure.
+## Безопасность
 
-## Future enhancements
-
-1. Optional third pane configured per project for tests, dev server, or logs.
-2. A compact generated command such as `remote-ai review` so Warp configs do not need to embed review shell commands.
-3. A focus-back link from Remote AI notifications to the exact Warp pane when Warp exposes a stable public focus target for this workflow.
-4. App-managed cleanup for stale `remote_ai_*.toml` files.
-5. Project presets: review-only, Claude-only, review + Claude, review + Claude + logs.
-
-## Security rules
-
-- Never write Claude OAuth/session tokens into a Warp config.
-- Never persist the Claude transcript only to populate the review pane.
-- Keep SSH host-key checking enabled.
-- Shell-quote SSH commands and TOML-escape every generated string.
-- Keep Git metadata local until the separate Git bridge design is complete.
+- Не записывать Claude OAuth/session tokens в Warp config.
+- Не сохранять transcript только ради review pane.
+- Не отключать SSH host-key checking.
+- Shell-quote SSH commands и TOML-escape generated strings.
+- Держать Git metadata локально.

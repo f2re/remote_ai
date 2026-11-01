@@ -1,4 +1,4 @@
-name: macOS CI
+name: macOS CI — проверка
 
 on:
   push:
@@ -16,33 +16,38 @@ concurrency:
 
 jobs:
   verify:
+    name: Проверка macOS
     runs-on: macos-latest
     env:
-      CI_APP_VERSION: "0.2.0"
+      CI_APP_VERSION: "0.2.1"
     steps:
-      - uses: actions/checkout@v4
+      - name: Получение исходников
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Toolchain
+      - name: Версия toolchain
         run: swift --version
 
-      - name: Unit tests
+      - name: Модульные тесты
         run: swift test --parallel
 
-      - name: Native release compile
+      - name: Проверка русскоязычного контракта
+        run: ./tools/check-russian-contract.sh
+
+      - name: Release-компиляция
         run: swift build -c release
 
-      - name: Package Universal 2 app
+      - name: Сборка Universal 2
         run: APP_VERSION="$CI_APP_VERSION" BUILD_NUMBER="$GITHUB_RUN_NUMBER" ./build.sh
 
-      - name: Render deterministic release screenshots
+      - name: Создание детерминированных снимков
         run: ./tools/snap.sh "$RUNNER_TEMP/RemoteAI-shots"
 
-      - name: Verify release bundle
+      - name: Проверка релизного bundle
         run: ./tools/verify-release.sh ".build/app/RemoteAI.app" "$RUNNER_TEMP/RemoteAI-shots" "$CI_APP_VERSION"
 
-      - name: Package CI candidate
+      - name: Упаковка CI-кандидата
         shell: bash
         run: |
           ZIP="RemoteAI-${CI_APP_VERSION}-ci-${GITHUB_RUN_NUMBER}-macOS.zip"
@@ -54,7 +59,7 @@ jobs:
           echo "CI_APP_ZIP=$ZIP" >> "$GITHUB_ENV"
           echo "CI_SHOTS_ZIP=$SHOTS" >> "$GITHUB_ENV"
 
-      - name: Upload verified candidate
+      - name: Загрузка проверенного артефакта
         uses: actions/upload-artifact@v4
         with:
           name: RemoteAI-${{ env.CI_APP_VERSION }}-${{ github.run_number }}-verified

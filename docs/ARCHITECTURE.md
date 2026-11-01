@@ -1,77 +1,79 @@
-# Architecture
+# Архитектура Remote AI
 
 ```text
 macOS Remote AI
   AppModel / state machine
-  ├─ Mascot UI (SwiftUI in floating NSPanel)
+  ├─ Mascot UI (SwiftUI во floating NSPanel)
   ├─ ConfigStore
-  ├─ WarpIntegration ── generated Tab Config ── Warp review + live Claude panes
+  ├─ WarpIntegration ── generated Tab Config ── локальный обзор + live Claude
   ├─ MutagenController ── OpenSSH transport ── remote workspace
-  └─ RemoteRuntimeController ── /usr/bin/ssh ── tmux ── unmodified claude
-                                                   └─ session-only Remote AI status plugin
-                                                      └─ lifecycle hook state file
+  └─ RemoteRuntimeController ── /usr/bin/ssh ── tmux ── неизменённый claude
+                                                   └─ session-only status plugin
+                                                      └─ lifecycle state file
 ```
 
-## State precedence
+## Приоритет состояния
 
 `sync conflict/error > offline > connecting > syncing > Claude lifecycle hook > pane fallback`
 
-A sync conflict is an error even if Claude is still running. SSH loss is offline. During initial session setup the state is connecting. Mutagen staging/scanning is syncing. Once sync is healthy, Claude lifecycle events report thinking/waiting/error. A bounded tmux pane parser is retained only as a compatibility fallback when an older Claude Code build does not accept `--plugin-dir`.
+Конфликт синхронизации остаётся ошибкой, даже если Claude продолжает работать. Потеря SSH переводит приложение в «Не в сети». Начальная подготовка — «Подключение». Сканирование/перенос Mutagen — «Синхронизация». После готовности sync lifecycle hooks Claude сообщают работу/ожидание/ошибку. Анализ последних строк tmux используется только как compatibility fallback.
+
+Сырой англоязычный вывод tmux/Mutagen не является основным пользовательским статусом. `AppModel` отображает интерпретированную русскую формулировку; исходная диагностика может использоваться только как техническая деталь.
 
 ## Warp handoff
 
-When a workspace is active, clicking the mascot opens Warp rather than presenting another Remote AI dashboard. Remote AI writes an app-owned Tab Config to `~/.warp/tab_configs/remote_ai_<workspace>.toml` and opens it through `warp://tab_config/<name>`.
+При активном workspace клик по маскоту открывает Warp вместо отдельного dashboard. Remote AI пишет Tab Config в `~/.warp/tab_configs/remote_ai_<workspace>.toml` и открывает его через `warp://tab_config/<name>`.
 
-The generated tab has two panes:
+Созданная вкладка содержит две панели:
 
-1. **Local review** in the user's real local checkout. It prints `git status`, tracked changed files, untracked files, and `git diff --stat`. Because Mutagen has already mirrored remote edits back to the Mac, this pane is the authoritative review surface for agent changes. File paths remain plain terminal output so Warp can make them clickable/openable in its editor.
-2. **Live Claude** runs the same SSH command Remote AI already uses for manual attach and joins the existing remote `tmux` session. No second Claude process is created, so the user sees the existing transcript and can immediately continue the conversation.
+1. **Локальный обзор** — реальный checkout пользователя. Выводит `git status`, изменённые tracked/untracked файлы и `git diff --stat`. После синхронизации Mutagen это авторитетная поверхность проверки изменений агента.
+2. **Текущий Claude Code** — выполняет тот же SSH attach, который используется ручным подключением, и присоединяется к существующей tmux-сессии. Второй Claude-процесс не создаётся.
 
-Warp's URI scheme does not execute arbitrary commands directly. The commands live in the generated Tab Config, while the `warp://` link only opens that named config. Terminal.app remains a fallback when Warp is unavailable.
+URI Warp сам не исполняет произвольные команды; команды находятся в app-owned Tab Config. Terminal.app остаётся fallback, если Warp отсутствует.
 
-Remote AI does not persist the Claude transcript to build the review pane. Results remain in the attached tmux session. The local pane derives changed-file information from the mirrored checkout, avoiding another transcript or prompt data store.
+Remote AI не сохраняет transcript Claude для построения обзора. Локальная панель получает информацию об изменениях из Git checkout.
 
-## Claude status bridge
+## Мост состояния Claude
 
-Remote AI installs a tiny plugin under `~/.remote-ai/runtime/status-plugin` on the remote host and starts the unmodified Claude Code binary with `--plugin-dir` when supported. The plugin adds lifecycle hooks; it does not replace the user's project/user hooks.
+Remote AI устанавливает небольшой plugin в `~/.remote-ai/runtime/status-plugin` и при поддержке запускает неизменённый Claude Code с `--plugin-dir`.
 
-The bridge records only a state token plus Unix timestamp into `~/.remote-ai/state/<workspace>.state`:
+Plugin записывает только token состояния и Unix timestamp в `~/.remote-ai/state/<workspace>.state`:
 
-- `SessionStart` -> waiting
-- `UserPromptSubmit` / `PreToolUse` -> thinking
-- `PermissionRequest` / relevant `Notification` -> waiting
-- `Stop` -> waiting
-- `StopFailure` -> error
-- `SessionEnd` -> offline
+- `SessionStart` → `waiting`;
+- `UserPromptSubmit` / `PreToolUse` → `thinking`;
+- `PermissionRequest` / релевантный `Notification` → `waiting`;
+- `Stop` → `waiting`;
+- `StopFailure` → `error`;
+- `SessionEnd` → `offline`.
 
-Hook stdin is discarded. Remote AI does not parse, copy, or persist prompts, tool inputs, responses, transcripts, OAuth tokens, or API keys.
+stdin hooks отбрасывается. Prompts, tool inputs, responses, transcripts, OAuth tokens и API keys не копируются и не сохраняются.
 
-## Workspace identity
+## Идентичность workspace
 
-Workspace IDs are deterministic from the standardized local path. The remote directory and tmux session use the same sanitized ID so reconnect does not create duplicates.
+Workspace ID детерминирован по стандартизованному локальному пути. Remote directory и tmux session используют тот же sanitized ID, поэтому reconnect не создаёт дубликаты.
 
-## Synchronization safety
+Mutagen session name дополнительно включает hash effective route: host, user, port и remote path. Смена сервера не может незаметно переиспользовать старую сессию.
 
-Use Mutagen `two-way-safe`. Both the local developer and remote Claude can modify the tree, so conflicts must not be auto-resolved by precedence. Ignore generated/heavy paths such as `.build`, `DerivedData`, `node_modules`, `venv`, `.venv`, `target`, `build`, and `dist` by default. Keep `.git` synchronized only after explicit testing; MVP ignores `.git` to prevent concurrent Git metadata mutation across machines.
+## Безопасность синхронизации
 
-The Warp review pane deliberately runs Git on the local checkout rather than on the mirrored remote tree. This keeps `.git` local while still showing the exact files that the remote agent changed after synchronization.
+Используется `two-way-safe`. Локальный разработчик и удалённый Claude могут менять одно дерево, поэтому конфликт не разрешается приоритетом одной стороны. По умолчанию игнорируются `.git`, `.build`, `DerivedData`, `node_modules`, `venv`, `.venv`, `target`, `build`, `dist`.
 
-## Authentication boundary
+`.git` намеренно остаётся локальным: это предотвращает одновременное изменение Git metadata с двух машин. Warp review выполняет Git-команды на локальном checkout после синхронизации.
 
-Remote AI never implements Claude account login. It launches the unmodified `claude` CLI remotely. If that process requires authentication, the user attaches to that session and completes Anthropic's own flow. Remote AI does not read credential files or receive access tokens.
+## Граница авторизации
 
-## Remote command boundary
+Remote AI не реализует логин в Claude. Он запускает неизменённый `claude` CLI на сервере. Если требуется авторизация, пользователь подключается к существующей удалённой сессии и проходит собственный flow Anthropic. Credential files и access tokens приложение не читает.
 
-Local executable + argv is always used for local tools. SSH necessarily invokes a remote shell for tmux commands, so values are sanitized and shell-quoted. Project/session IDs are restricted to ASCII alphanumerics, `_` and `-`.
+## Граница remote commands
 
-The generated Warp Tab Config contains only local review commands plus the already shell-quoted SSH attach command. TOML string values are escaped before writing.
+Для локальных инструментов используется executable + argv. SSH вызывает remote shell только для tmux/runtime-команд; все пользовательские значения валидируются/quoted. Generated Warp TOML экранируется отдельно.
 
-## Future layers
+## Возможные следующие слои
 
-- optional third Warp pane for test/log commands selected per project
-- app-owned Warp Tab Config cleanup and regeneration policy
-- isolated Mutagen daemon and app-private SSH wrapper/config
-- native Claude background-session provider as an alternative to tmux when minimum supported Claude Code version is raised
-- multiple servers and workspaces
-- launch-at-login
-- signed/notarized distribution
+- третья Warp-панель для test/log commands проекта;
+- очистка app-owned `remote_ai_*.toml`;
+- isolated Mutagen daemon + app-private SSH wrapper/config;
+- native background-session provider вместо tmux при повышении минимальной версии Claude Code;
+- несколько серверов/workspaces;
+- launch-at-login;
+- полностью подписанный и notarized distribution.

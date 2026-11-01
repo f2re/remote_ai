@@ -54,23 +54,23 @@ enum SSHFailureMessage {
         let lower = trimmed.lowercased()
 
         if lower.contains("permission denied") {
-            return "SSH authentication failed. Check the user, SSH key/agent, and ~/.ssh/config for this host."
+            return "Не удалось пройти SSH-аутентификацию. Проверьте пользователя, SSH-ключ или ssh-agent и настройки ~/.ssh/config для этого хоста."
         }
         if lower.contains("could not resolve hostname") || lower.contains("name or service not known") {
-            return "SSH host could not be resolved. Check the hostname or SSH alias."
+            return "Не удалось определить адрес SSH-хоста. Проверьте имя хоста или SSH-псевдоним."
         }
         if lower.contains("connection timed out") || lower.contains("operation timed out") {
-            return "SSH connection timed out after 10 seconds. Check the host, port, VPN, firewall, or network route."
+            return "SSH-подключение не установлено за 10 секунд. Проверьте хост, порт, VPN, межсетевой экран и сетевой маршрут."
         }
         if lower.contains("connection refused") {
-            return "SSH connection was refused. Check that sshd is running and the configured port is correct."
+            return "SSH-соединение отклонено. Проверьте, что sshd запущен и указан правильный порт."
         }
         if lower.contains("host key verification failed") {
-            return "SSH host-key verification failed. Resolve the host entry in ~/.ssh/known_hosts before reconnecting."
+            return "Проверка SSH-ключа хоста не пройдена. Исправьте запись в ~/.ssh/known_hosts и повторите подключение."
         }
         if trimmed.isEmpty {
-            return "SSH command failed without diagnostic output."
+            return "Команда SSH завершилась ошибкой без диагностического сообщения."
         }
-        return "SSH failed: \(trimmed)"
+        return "Ошибка SSH. Диагностика удалённого инструмента: \(trimmed)"
     }
 }

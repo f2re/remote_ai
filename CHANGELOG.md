@@ -1,36 +1,52 @@
-# Changelog
+# История изменений
+
+## 0.2.1
+
+Полная русификация продукта и оформление репозитория.
+
+- весь пользовательский интерфейс Settings и контекстного меню переведён на русский язык;
+- русифицированы accessibility labels/hints, уведомления, ошибки конфигурации, SSH/Mutagen diagnostics и runtime-статусы;
+- приложение больше не использует сырой англоязычный вывод tmux как основной текст состояния;
+- fallback-анализ tmux дополнен русскими маркерами Claude Code;
+- русифицирован локальный Git-обзор в Warp;
+- `CFBundleDevelopmentRegion` переключён на `ru`, системное описание Apple Events переведено;
+- снимки состояний маскота и Settings теперь содержат русские подписи;
+- README, документация, агентские инструкции, CI/CD и release notes приведены к единому русскоязычному словарю;
+- добавлены `CONTRIBUTING.md`, `SECURITY.md`, `docs/LOCALIZATION.md` и русские GitHub templates;
+- release workflow публикует подготовленные русские заметки вместо автоматически сгенерированного англоязычного текста;
+- CI baseline обновлён до версии 0.2.1.
 
 ## 0.2.0
 
-Full-functionality hardening release.
+Релиз функционального укрепления Remote AI.
 
-- non-destructive setup diagnostics for configuration, local project, SSH identity, Mutagen, SSH connectivity, remote tmux, and remote Claude Code
-- bounded SSH connection attempts with actionable authentication/DNS/timeout/refusal/host-key errors
-- remote commands run through the remote login shell so user-installed `claude` binaries are discovered consistently
-- automatic status restore for an already-running remote tmux/Claude session when Remote AI relaunches
-- Start / Reconnect performs preflight before creating or mutating synchronization/runtime state
-- Mutagen session identity now includes host, user, port, and remote path; stale/legacy sessions are paused instead of deleted
-- robust Mutagen discovery for Homebrew on Apple Silicon and Intel macOS
-- Universal 2 release binaries (`arm64` + `x86_64`)
-- CI verifies tests, release compile, app bundle, codesign, architectures, metadata, screenshots, ZIP integrity, and checksums
-- release tags must point to commits contained in `main`
-- release assets include the app ZIP, screenshot ZIP, SHA-256 manifest, and individual light/dark PNGs
-- Developer ID + notarization remains optional; unnotarized builds are automatically prereleases
+- неразрушающая диагностика конфигурации, локального проекта, SSH identity, Mutagen, SSH, tmux и Claude Code;
+- ограниченные по времени SSH-попытки и понятные ошибки аутентификации, DNS, timeout, отказа соединения и host key;
+- удалённые команды выполняются через login shell, чтобы корректно находить пользовательский `claude`;
+- автоматическое восстановление существующей tmux/Claude-сессии после перезапуска приложения без запуска второго процесса;
+- «Запустить / переподключить» выполняет preflight до изменения runtime и синхронизации;
+- имя сессии Mutagen учитывает host/user/port/remote path, а старые маршруты приостанавливаются вместо удаления;
+- Mutagen корректно обнаруживается в Homebrew на Apple Silicon и Intel;
+- релизные бинарники Universal 2 (`arm64 + x86_64`);
+- CI проверяет тесты, release compile, app bundle, codesign, архитектуры, metadata, snapshots, ZIP и SHA-256;
+- релизный тег обязан указывать на commit, входящий в `main`;
+- релиз содержит app ZIP, screenshots ZIP, SHA-256 manifest и отдельные PNG;
+- Developer ID/notarization остаются опциональными; неподписанный Apple Developer ID выпуск автоматически помечается prerelease.
 
 ## 0.1.0
 
-Initial Remote AI preview.
+Первый предварительный выпуск Remote AI.
 
-- native macOS floating pixel-cloud mascot
-- six deterministic runtime states: offline, connecting, syncing, thinking, waiting, error
-- OpenSSH + tmux lifecycle for persistent remote Claude Code
-- Mutagen `two-way-safe` workspace mirroring and conflict surfacing
-- Claude lifecycle status hooks with bounded tmux fallback parsing
-- Warp two-pane handoff for local Git review plus live remote Claude session
-- macOS notifications that return to the active Warp workspace
-- BAMA-driven macOS design and development workflow
-- first-run Settings/project setup flow
-- generated macOS pixel-cloud application icon
-- light/dark release screenshot harness
-- CI test/build/package/screenshot gates
-- tag-driven GitHub Release workflow with optional Developer ID signing and notarization
+- нативный плавающий macOS-маскот в виде пиксельного облака;
+- шесть детерминированных состояний: не в сети, подключение, синхронизация, работа, ожидание, ошибка;
+- OpenSSH + tmux для постоянной удалённой сессии Claude Code;
+- зеркалирование рабочей папки Mutagen `two-way-safe` и отображение конфликтов;
+- status hooks Claude с ограниченным fallback-анализом tmux;
+- двухпанельный Warp-handoff: локальный Git-обзор + текущая удалённая Claude-сессия;
+- уведомления macOS при ожидании пользовательского ввода;
+- BAMA-процесс проектирования и разработки;
+- first-run настройка сервера и проекта;
+- программно сгенерированный значок приложения;
+- light/dark snapshot harness;
+- CI для test/build/package/snapshots;
+- tag-driven GitHub Release с опциональными Developer ID и notarization.

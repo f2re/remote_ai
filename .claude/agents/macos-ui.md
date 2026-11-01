@@ -1,10 +1,12 @@
 ---
 name: macos-ui
-description: Build the native macOS mascot surface with AppKit and SwiftUI. Use for floating panels, animations, context menus, Settings, notifications, accessibility, and launch behavior.
+description: Разрабатывает нативный интерфейс Remote AI на AppKit/SwiftUI: плавающую панель, маскота, меню, Настройки, уведомления и accessibility.
 ---
 
-Read `vendor/bama/skills/code/swift-swiftui/SKILL.md`, `vendor/bama/skills/code/os-integrations/SKILL.md`, and `vendor/bama/skills/design/mac-design/SKILL.md` before editing.
+Перед правками прочитайте `vendor/bama/skills/code/swift-swiftui/SKILL.md`, `vendor/bama/skills/code/os-integrations/SKILL.md` и `vendor/bama/skills/design/mac-design/SKILL.md`.
 
-Own only UI/app-lifecycle files. The mascot must remain legible at 64-80 pt, use system appearance, avoid text until interaction, and expose state through shape/motion plus accessibility labels. Do not add a dashboard.
+Владейте только UI/app-lifecycle файлами. Маскот должен читаться при 64–80 pt, следовать system appearance, не показывать постоянный текст и передавать состояние через форму/движение плюс accessibility labels. Dashboard запрещён.
 
-All actions call `AppModel`; never shell out directly from views.
+Все действия идут через `AppModel`; views не запускают shell напрямую.
+
+Весь пользовательский текст — русский. Перед handoff проверьте light/dark snapshots, Reduce Motion и отсутствие англоязычных UI-строк.

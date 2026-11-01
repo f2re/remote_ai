@@ -1,27 +1,27 @@
-# BAMA delegation map
+# Карта делегирования BAMA
 
-This repository vendors `daveebbelaar/bama` at `vendor/bama` and uses its skills as the authoritative macOS development workflow.
+Репозиторий закрепляет `daveebbelaar/bama` в `vendor/bama` и использует его skills как основной процесс разработки macOS.
 
-## Active pixel-cloud pass
+## Роли и маршрутизация
 
-| Work packet | BAMA skill | GitHub issue | Output |
+| Рабочий пакет | BAMA skill | Локальный агент | Основной результат |
 | --- | --- | --- | --- |
-| Interaction/state language | `skills/design/ux-design` | #8 | `docs/BRIEF.md`, `docs/GLOSSARY.md` |
-| Native visual system + motion tokens | `skills/design/mac-design`, `skills/design/design-system` | #9 | `design/DESIGN-SYSTEM.md`, `Sources/RemoteAI/UI/*` |
-| Custom pixel-cloud component | `skills/design/design-kit` | #10 | `design/KIT.md`, mascot SwiftUI components |
-| Verification/improvement loop | `skills/ship/build-and-verify`, `skills/ship/improve-loop`, `skills/ship/test-mac-app` | #11 | CI/build/test verification and repair commits |
+| UX и язык состояний | `skills/design/ux-design` | `macos-ui` | `docs/BRIEF.md`, `docs/GLOSSARY.md` |
+| Нативная визуальная система | `skills/design/mac-design`, `skills/design/design-system` | `macos-ui` | `design/DESIGN-SYSTEM.md`, UI tokens |
+| Пиксельное облако | `skills/design/design-kit` | `macos-ui` | `design/KIT.md`, SwiftUI-компоненты |
+| SSH/tmux/Claude lifecycle | BAMA code/architecture guidance | `remote-runtime` | remote runtime services |
+| Mutagen и sync safety | BAMA architecture/testing guidance | `sync-engineer` | synchronization services |
+| Проверка и улучшение | `skills/ship/build-and-verify`, `skills/ship/improve-loop`, `skills/ship/test-mac-app` | `qa-security` | tests, CI, snapshots, release gate |
+| Интеграция | router + relevant skills | `orchestrator` | sequencing, acceptance, merge/release |
 
-## Execution contract
+## Контракт выполнения
 
-1. Read the owning `SKILL.md` before touching its files.
-2. Keep each packet bounded to its declared output and acceptance criteria.
-3. Commit design/spec work before implementation work.
-4. Commit implementation before verification repairs.
-5. Do not duplicate BAMA guidance in new local agent prompts unless Remote AI has a project-specific invariant that BAMA cannot know.
-6. Every handoff records files changed, checks run and known risks.
+1. Перед правкой прочитать owning `SKILL.md`.
+2. Ограничить пакет заявленными файлами и acceptance criteria.
+3. Сначала фиксировать design/spec, затем implementation, затем verification repairs.
+4. Не дублировать BAMA в локальных prompts, кроме проектных invariants Remote AI.
+5. Каждый handoff содержит изменённые файлы, выполненные проверки и известные риски.
+6. Любой пользовательский текст проверяется по `docs/LOCALIZATION.md`.
+7. Merge разрешён только после обязательных build/test/snapshot gates.
 
-## Current sequence
-
-`#8 ux-design` -> `#9 mac-design/design-system` -> `#10 design-kit implementation` -> `#11 build-and-verify/improve-loop`.
-
-The repo-local `orchestrator` and `macos-ui` wrappers route to these skills. They are not alternative frameworks.
+Локальные агенты — маршрутизаторы к BAMA, а не альтернативный фреймворк.

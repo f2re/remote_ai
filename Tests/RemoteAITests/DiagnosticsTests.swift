@@ -34,15 +34,15 @@ final class DiagnosticsTests: XCTestCase {
     func testSSHFailureMessagesAreActionable() {
         XCTAssertEqual(
             SSHFailureMessage.describe("ssh: connect to host box port 22: Operation timed out"),
-            "SSH connection timed out after 10 seconds. Check the host, port, VPN, firewall, or network route."
+            "SSH-подключение не установлено за 10 секунд. Проверьте хост, порт, VPN, межсетевой экран и сетевой маршрут."
         )
         XCTAssertEqual(
             SSHFailureMessage.describe("dev@box: Permission denied (publickey)."),
-            "SSH authentication failed. Check the user, SSH key/agent, and ~/.ssh/config for this host."
+            "Не удалось пройти SSH-аутентификацию. Проверьте пользователя, SSH-ключ или ssh-agent и настройки ~/.ssh/config для этого хоста."
         )
         XCTAssertEqual(
             SSHFailureMessage.describe("ssh: Could not resolve hostname box: nodename nor servname provided"),
-            "SSH host could not be resolved. Check the hostname or SSH alias."
+            "Не удалось определить адрес SSH-хоста. Проверьте имя хоста или SSH-псевдоним."
         )
     }
 
@@ -55,5 +55,14 @@ final class DiagnosticsTests: XCTestCase {
 
     func testDefaultConfigurationUsesOpenSSHDiscovery() {
         XCTAssertEqual(RemoteAIConfig().sshKeyPath, "")
+    }
+
+    func testRussianProductVocabulary() {
+        XCTAssertEqual(MascotState.offline.accessibilityLabel, "Remote AI: не в сети")
+        XCTAssertEqual(MascotState.thinking.accessibilityLabel, "Claude Code выполняет задачу")
+        XCTAssertEqual(MascotState.waiting.accessibilityLabel, "Claude Code ожидает ввода")
+        XCTAssertEqual(SetupCheckStatus.passed.label, "Готово")
+        XCTAssertEqual(SetupCheckStatus.warning.label, "Проверить")
+        XCTAssertEqual(SetupCheckStatus.failed.label, "Ошибка")
     }
 }

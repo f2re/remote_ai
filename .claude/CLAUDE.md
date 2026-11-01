@@ -1,20 +1,18 @@
 # Remote AI
 
-Native macOS mascot for supervising a persistent Claude Code session on a remote Linux/macOS host while code stays mirrored locally.
+Нативный macOS-маскот для управления постоянной удалённой сессией Claude Code при локальном зеркалировании проекта.
 
-## BAMA agent framework
+## BAMA
 
-BAMA is pinned as the `vendor/bama` submodule. Its skills are the source of truth for native macOS product work in this repository.
-
-Initialize it with:
+BAMA подключён как submodule `vendor/bama` и является источником правил для нативной macOS-разработки.
 
 ```bash
 git submodule update --init --recursive
 ```
 
-Start every macOS product task at `vendor/bama/skills/start/bama/SKILL.md`. Do not invent a parallel design process when BAMA already has a skill for the work.
+Любую продуктовую macOS-задачу начинайте с `vendor/bama/skills/start/bama/SKILL.md`. Не создавайте параллельный дизайн-процесс, если BAMA уже содержит подходящий skill.
 
-For mascot/UI work, execute the BAMA pipeline in this order:
+Для маскота/UI используйте порядок:
 
 1. `vendor/bama/skills/design/ux-design/SKILL.md`
 2. `vendor/bama/skills/design/mac-design/SKILL.md`
@@ -24,38 +22,38 @@ For mascot/UI work, execute the BAMA pipeline in this order:
 6. `vendor/bama/skills/ship/build-and-verify/SKILL.md`
 7. `vendor/bama/skills/ship/improve-loop/SKILL.md`
 
-The active delegation map lives in `docs/BAMA-DELEGATION.md`. GitHub issues are work packets; each packet names its owning BAMA skill and acceptance criteria.
+Карта делегирования: `docs/BAMA-DELEGATION.md`. GitHub Issues используются как ограниченные work packets с owning skill и acceptance criteria.
 
-Design rules: `design/DESIGN-SYSTEM.md`. Use its tokens; never add raw mascot colors, radii, or animation durations to feature views.
-Custom mascot rules: `design/KIT.md`.
+Правила дизайна: `design/DESIGN-SYSTEM.md`. Спецификация маскота: `design/KIT.md`.
 
-## Product contract
+## Контракт продукта
 
-Remote AI is intentionally quiet. The default UI is one small floating pixel-cloud mascot. It communicates only these states: offline, connecting, syncing, thinking, waiting, and error. Configuration and destructive controls stay behind a context menu or Settings.
+Remote AI остаётся тихим приложением-компаньоном. Единственная постоянная поверхность — маленькое плавающее пиксельное облако. Состояния: не в сети, подключение, синхронизация, Claude работает, ожидание ввода, ошибка. Конфигурация и разрушительные действия находятся в контекстном меню или Настройках.
 
-Architecture: local Swift app -> OpenSSH + Mutagen -> remote workspace -> tmux -> unmodified Claude Code. Claude keeps working when the Mac sleeps or disconnects. Mutagen catches up on reconnect.
+Архитектура: Swift/macOS → OpenSSH + Mutagen → remote workspace → tmux → неизменённый Claude Code.
 
-## Non-negotiable invariants
+## Неприкосновенные правила
 
-- Never collect, proxy, copy, or persist Claude OAuth/session credentials. Authentication belongs to the unmodified Claude Code process on the remote machine.
-- Default sync mode is `two-way-safe`. A conflict is a visible error state, never silently resolved by deleting remote or local edits.
-- Never purge a remote workspace until a successful Mutagen flush has completed or the user explicitly forces data loss.
-- Build shell commands from escaped arguments. Do not interpolate project paths, prompts, hostnames, or session names into executable shell syntax without validation/quoting.
-- SSH host keys use normal OpenSSH trust. Never set `StrictHostKeyChecking=no`.
-- Keep the mascot surface minimal. Diagnostics live in logs and Settings.
-- Keep native controls native. The mascot may be custom; menus, Settings, alerts and system notifications remain standard macOS surfaces.
+- Не читать, не копировать и не сохранять OAuth/session credentials Claude.
+- Mutagen по умолчанию работает только в `two-way-safe`; конфликт — блокирующая видимая ошибка.
+- Не очищать remote workspace до успешного flush либо явного согласия пользователя на потерю данных.
+- Все shell-boundary значения валидировать и экранировать.
+- Не отключать проверку SSH host key.
+- Не превращать маскота в dashboard.
+- Меню, Настройки, alerts и notifications остаются нативными macOS surfaces.
+- Весь пользовательский текст и локальная документация Remote AI должны быть на русском языке. Технические identifiers/API/commands не переводятся.
 
-## Repository roles
+## Локальные агенты
 
-These are routing wrappers around BAMA, not replacements for BAMA skills:
+Это маршрутизаторы к BAMA, а не замена BAMA skills:
 
-- `orchestrator`: integration, sequencing, acceptance, and choosing the next BAMA skill.
-- `macos-ui`: applies BAMA UX/design/SwiftUI skills to the mascot, Settings and notifications.
-- `remote-runtime`: SSH, tmux, Claude lifecycle, attach/detach, remote bootstrap.
-- `sync-engineer`: Mutagen sessions, conflict detection, local/remote workspace mapping.
-- `qa-security`: tests, failure injection, shell/credential review, packaging gates.
+- `orchestrator`: интеграция и выбор следующего skill;
+- `macos-ui`: UX/design/SwiftUI для маскота, Настроек и уведомлений;
+- `remote-runtime`: SSH/tmux/Claude lifecycle;
+- `sync-engineer`: Mutagen и workspace mapping;
+- `qa-security`: тесты, failure injection, security review и packaging.
 
-## Build gates
+## Проверки
 
 ```bash
 swift build
@@ -63,4 +61,4 @@ swift test
 ./build.sh
 ```
 
-Every feature must keep state transitions deterministic and testable without a live server. Remote integration tests are opt-in.
+State transitions должны оставаться детерминированными и проверяться без живого сервера. Реальный remote E2E — отдельный manual gate.

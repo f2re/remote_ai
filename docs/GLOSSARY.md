@@ -1,14 +1,17 @@
-# Glossary
+# Словарь Remote AI
 
-| Term | Means | Not |
+| Термин | Значение | Не означает |
 | --- | --- | --- |
-| Mascot | The persistent pixel-cloud control that shows Remote AI state and opens the main handoff action | dashboard, widget, status card |
-| Workspace | One local project folder plus its deterministic mirrored remote directory and tmux session | server, repository metadata |
-| Review | The Warp handoff that shows local Git changes beside the live remote Claude tmux session | embedded editor, transcript archive |
-| Start / Reconnect | Prepare SSH, resume/create Mutagen, and start/reuse the remote Claude session | create a second Claude process |
-| Stop | Flush synchronization, stop the remote Claude session, then pause the mirror | delete workspace, discard edits |
-| Waiting | Claude is idle or requires user input and the workspace is synchronized | offline, finished forever |
-| Thinking | Claude is actively processing a turn or using tools | syncing files |
-| Syncing | Mutagen is scanning/staging/transferring workspace changes | Claude thinking |
-| Offline | Remote session or mirror is not currently active/reachable | error that always needs an alert |
-| Error | A state requiring attention, such as a sync conflict or runtime failure | generic warning color only |
+| **Маскот** | постоянное пиксельное облако, показывающее состояние Remote AI и выполняющее основное действие | dashboard, status card |
+| **Рабочее пространство** | локальная папка проекта + детерминированная удалённая папка + tmux-сессия | весь сервер или Git metadata |
+| **Обзор** | Warp-handoff с локальными Git-изменениями рядом с текущей удалённой Claude/tmux-сессией | встроенный редактор или архив transcript |
+| **Запустить / переподключить** | проверить окружение, создать/возобновить Mutagen и запустить/повторно использовать Claude-сессию | запустить второй Claude-процесс |
+| **Остановить** | успешно синхронизировать изменения, остановить Claude/tmux и приостановить зеркало | удалить workspace или отбросить изменения |
+| **Ожидание ввода** | Claude закончил ход или требует пользовательского ввода при синхронизированном workspace | «не в сети» или завершение навсегда |
+| **Claude Code работает** | Claude обрабатывает ход или использует инструменты | синхронизация файлов |
+| **Синхронизация** | Mutagen сканирует, подготавливает или переносит изменения | работа Claude |
+| **Не в сети** | удалённая сессия или зеркало сейчас неактивны/недоступны | ошибка, которая всегда требует alert |
+| **Ошибка** | состояние, требующее внимания: конфликт синхронизации, SSH/runtime failure и т. п. | просто декоративный красный цвет |
+| **Проверить настройку** | неразрушающая проверка локального проекта, SSH, Mutagen, tmux и Claude Code | запуск сессии или изменение удалённых файлов проекта |
+
+Полный языковой контракт: `docs/LOCALIZATION.md`.

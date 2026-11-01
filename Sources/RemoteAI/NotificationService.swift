@@ -14,7 +14,7 @@ struct NotificationService: Sendable {
     func notifyWaiting(workspace: Workspace, detail: String?) async {
         let content = UNMutableNotificationContent()
         content.title = "Remote AI"
-        content.body = detail.map { "\(workspace.name): \($0)" } ?? "\(workspace.name): Claude Code is waiting for input."
+        content.body = detail.map { "\(workspace.name): \($0)" } ?? "\(workspace.name): Claude Code ожидает ввода."
         content.sound = .default
         content.categoryIdentifier = RemoteAINotification.waitingCategory
         content.userInfo = [RemoteAINotification.workspaceIDKey: workspace.id]

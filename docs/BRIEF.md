@@ -1,82 +1,77 @@
-# Remote AI brief
+# Продуктовый brief Remote AI
 
-## One sentence
+## В одном предложении
 
-A tiny native macOS pixel-cloud mascot that lets a developer start, leave running, reconnect to, and monitor Claude Code on a remote server while the project directory is mirrored back to the Mac.
+Remote AI — маленький нативный macOS-маскот в виде пиксельного облака, который позволяет запускать, оставлять работающим, восстанавливать и контролировать Claude Code на удалённом сервере, пока проект автоматически зеркалируется на Mac.
 
-## Primary user flow
+## Основной пользовательский сценарий
 
-1. First launch: configure one SSH host and choose a local project folder.
-2. Remote AI creates/resumes a Mutagen mirror into a per-project remote workspace.
-3. Remote AI starts or reuses a named tmux session containing the unmodified `claude` CLI.
-4. The pixel-cloud mascot changes expression and motion without opening a dashboard.
-5. When Claude becomes idle or asks for input, macOS sends a notification.
-6. Click the active mascot or notification to open the Warp review/session handoff.
-7. The user can close the laptop; the tmux session keeps running remotely.
-8. After reconnect, Mutagen resumes and the local tree catches up.
+1. При первом запуске пользователь указывает SSH-хост и выбирает локальную папку проекта.
+2. Remote AI создаёт или возобновляет зеркало Mutagen в отдельное удалённое рабочее пространство проекта.
+3. Remote AI запускает или повторно использует именованную tmux-сессию с неизменённым `claude` CLI.
+4. Пиксельное облако меняет выражение и движение без открытия dashboard.
+5. Когда Claude закончил ход или просит ввод, macOS показывает уведомление.
+6. Клик по активному маскоту или уведомлению открывает Warp: локальный Git-обзор слева и текущая Claude/tmux-сессия справа.
+7. Mac можно закрыть или отключить от сети — tmux продолжает работать на сервере.
+8. После восстановления соединения Mutagen синхронизирует изменения обратно.
 
-## Design plan
+## Дизайн-план
 
-- Archetype: floating companion panel plus native Settings.
-- Information architecture: no primary window; mascot is the only persistent product surface. Settings contains configuration only.
-- Command map: primary click starts/reconnects while offline/error; primary click opens Warp while active. Context menu exposes Choose Project, Start/Reconnect, Open Review in Warp, Attach in Terminal, Stop, Settings, Quit.
-- Empty state: sleeping cloud with tooltip directing the first project/server setup.
-- Feeling: calm, quiet, confident.
-- Customization boundary: the cloud and its tiny status particles are custom. Menus, Settings, notifications, buttons and alerts stay native.
+- Архетип: плавающий companion panel + нативные Настройки macOS.
+- Информационная архитектура: основного окна нет; маскот — единственная постоянная поверхность. Настройки содержат конфигурацию и диагностику.
+- Основной клик: при первом запуске ведёт к недостающему шагу; в `offline/error` запускает или восстанавливает сессию; при активной сессии открывает Warp.
+- Контекстное меню: Выбрать проект, Запустить / переподключить, Открыть обзор в Warp, Подключиться в Terminal, Остановить, Настройки, Завершить Remote AI.
+- Empty state: спящее облако с русской подсказкой о настройке сервера/проекта.
+- Характер: спокойный, тихий, уверенный.
+- Граница кастомизации: только облако и его status pixels кастомные. Меню, Настройки, уведомления, кнопки и системные диалоги остаются нативными.
 
-## Mascot UX
+## UX маскота
 
-Flow: click sleeping cloud -> connect/sync/start -> cloud becomes active -> Claude works -> cloud thinks -> Claude waits -> cloud settles awake + macOS notification -> click cloud/notification -> Warp opens local review + live tmux session.
+Сценарий: спящее облако → подключение → синхронизация → Claude работает → Claude ожидает ввода + уведомление → клик → Warp с локальным обзором и текущей tmux-сессией.
 
-Surface: a borderless floating panel. No dashboard, popover stack or permanent text.
+Поверхность: borderless floating panel. Без dashboard, стека popover и постоянной текстовой карточки.
 
-States:
-- offline: sleeping face, low emphasis, no looped motion
-- connecting: awake/searching face, one moving status pixel
-- syncing: awake face, two orbiting pixel satellites
-- thinking: focused face, gentle float and sparkle
-- waiting: calm awake face, one steady status pixel
-- error: concerned face and compact warning pixel cluster; details remain in tooltip/context interaction
+Состояния:
 
-Words:
-- `Choose Project…`
-- `Start / Reconnect`
-- `Open Review in Warp`
-- `Attach in Terminal`
-- `Stop`
-- `Settings…`
-- `Quit`
+- **Не в сети** — закрытые глаза, низкий визуальный акцент, без зацикленной анимации;
+- **Подключение** — бодрствующее/ищущее выражение и один движущийся пиксель;
+- **Синхронизация** — открытые глаза и два вращающихся пикселя;
+- **Claude Code работает** — сосредоточенное выражение, лёгкий float и sparkle;
+- **Ожидание ввода** — спокойное бодрствующее выражение и постоянный status pixel;
+- **Ошибка** — обеспокоенное выражение и компактный warning cluster; детали остаются в tooltip/Настройках.
 
-Access:
-- the mascot remains a real `Button`
-- VoiceOver reads the semantic state, not the decorative pixels
-- right-click context menu exposes all actions
-- Reduce Motion removes orbit/float loops and keeps static state expressions
-- status meaning never depends on color alone
+## Доступность
 
-## Scope for MVP
+- маскот остаётся настоящим `Button`;
+- VoiceOver читает смысловое состояние, а не декоративные пиксели;
+- все действия доступны через контекстное меню;
+- Reduce Motion выключает orbit/float/sparkle loops, сохраняя различимость состояний;
+- смысл состояния не зависит только от цвета;
+- пользовательские строки — русские согласно `docs/LOCALIZATION.md`.
 
-- one configured server
-- one active workspace at a time
-- SSH key or normal OpenSSH config
-- Mutagen mirroring
-- tmux Claude lifecycle
-- status polling and notifications
-- choose project / start / attach / stop / Settings
-- Warp review handoff
-- polished pixel-cloud mascot
+## Scope
 
-## Explicit non-goals for MVP
+- один настроенный сервер;
+- одно активное рабочее пространство;
+- обычная конфигурация OpenSSH/SSH key;
+- Mutagen mirroring;
+- tmux lifecycle Claude Code;
+- polling состояния и уведомления;
+- выбор проекта, запуск, attach, остановка, Настройки;
+- Warp review handoff;
+- пиксельное облако как основной интерфейс.
 
-- embedded chat UI
-- file editor
-- API-key brokerage
-- OAuth token proxying
-- multi-user server service
-- automatic remote deletion
-- replacing Claude Code itself
-- dashboard-style monitoring UI
+## Не входит в текущий scope
 
-## Done when
+- встроенный чат;
+- файловый редактор;
+- API-key brokerage;
+- OAuth proxy;
+- multi-user серверный сервис;
+- автоматическое удаление remote workspace;
+- замена Claude Code;
+- dashboard мониторинга.
 
-A user can select a local repo, start Remote AI, detach, lose connectivity, reconnect, and see the mascot correctly return to syncing/thinking/waiting without losing edits. The cloud is legible in light/dark mode, respects Reduce Motion, and opens the same Warp session when the user needs to take over.
+## Готово, когда
+
+Пользователь может выбрать локальный репозиторий, настроить сервер, пройти диагностику, запустить Remote AI, отключиться, восстановить соединение и увидеть корректный переход маскота между синхронизацией, работой и ожиданием без потери изменений. Light/dark, Reduce Motion, VoiceOver и русскоязычный интерфейс проходят snapshot/ручную проверку.

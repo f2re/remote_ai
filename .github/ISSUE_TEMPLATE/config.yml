@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Вопросы безопасности
+    url: https://github.com/f2re/remote_ai/security
+    about: Не публикуйте секреты и рабочие exploit details в обычных issues.

@@ -6,50 +6,50 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Host or SSH alias", text: $model.config.host)
-                TextField("User", text: $model.config.user)
-                TextField("Port", value: $model.config.port, format: .number)
-                TextField("SSH key path (optional)", text: $model.config.sshKeyPath)
-                TextField("Remote workspace root", text: $model.config.remoteRoot)
+                TextField("Хост или SSH-псевдоним", text: $model.config.host)
+                TextField("Пользователь", text: $model.config.user)
+                TextField("Порт", value: $model.config.port, format: .number)
+                TextField("Путь к SSH-ключу (необязательно)", text: $model.config.sshKeyPath)
+                TextField("Корневая папка на сервере", text: $model.config.remoteRoot)
             } header: {
-                Text("Connection")
+                Text("Подключение")
             } footer: {
-                Text("Remote AI uses normal OpenSSH trust. Leave the key field empty to use ~/.ssh/config, ssh-agent, or default identities. For a non-default key, also configure IdentityFile in ~/.ssh/config so Mutagen follows the same route.")
+                Text("Remote AI использует стандартную модель доверия OpenSSH. Оставьте поле ключа пустым, чтобы использовать ~/.ssh/config, ssh-agent или стандартные ключи. Для нестандартного ключа также задайте IdentityFile в ~/.ssh/config, чтобы Mutagen использовал тот же маршрут.")
             }
 
             Section {
-                LabeledContent("Project") {
-                    Text(model.workspace?.localPath ?? "Not selected")
+                LabeledContent("Проект") {
+                    Text(model.workspace?.localPath ?? "Не выбран")
                         .foregroundStyle(model.workspace == nil ? .secondary : .primary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .help(model.workspace?.localPath ?? "No local project selected")
+                        .help(model.workspace?.localPath ?? "Локальный проект не выбран")
                 }
 
-                Button("Choose Project…") { model.chooseProject() }
+                Button("Выбрать проект…") { model.chooseProject() }
             } header: {
-                Text("Workspace")
+                Text("Рабочее пространство")
             } footer: {
-                Text("The selected folder is mirrored to a route-scoped remote workspace with Mutagen two-way-safe synchronization.")
+                Text("Выбранная папка зеркалируется в отдельное рабочее пространство на сервере через безопасную двустороннюю синхронизацию Mutagen two-way-safe.")
             }
 
             Section {
-                Toggle("Notify when Claude waits for input", isOn: $model.config.notifyWhenWaiting)
+                Toggle("Уведомлять, когда Claude Code ожидает ввода", isOn: $model.config.notifyWhenWaiting)
                     .controlSize(.mini)
 
-                LabeledContent("Refresh status") {
+                LabeledContent("Обновление состояния") {
                     HStack(spacing: 6) {
                         TextField("", value: $model.config.pollIntervalSeconds, format: .number)
                             .frame(width: 44)
                             .multilineTextAlignment(.trailing)
-                            .accessibilityLabel("Refresh interval in seconds")
-                        Text("seconds")
+                            .accessibilityLabel("Интервал обновления состояния в секундах")
+                        Text("с")
                             .foregroundStyle(.secondary)
                             .fixedSize()
                     }
                 }
             } header: {
-                Text("Behavior")
+                Text("Поведение")
             }
 
             Section {
@@ -61,13 +61,13 @@ struct SettingsView: View {
                             ProgressView()
                                 .controlSize(.small)
                         }
-                        Text(model.isTestingSetup ? "Testing Setup…" : "Test Setup")
+                        Text(model.isTestingSetup ? "Проверяем настройку…" : "Проверить настройку")
                     }
                 }
                 .disabled(model.isTestingSetup)
 
                 if model.setupChecks.isEmpty {
-                    Text("Run Test Setup to verify the local project, SSH route, Mutagen, remote tmux, and Claude Code without starting a session.")
+                    Text("Проверка подтверждает доступ к локальному проекту, SSH-маршрут, Mutagen, удалённые tmux и Claude Code без запуска рабочей сессии.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -92,24 +92,24 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text("Diagnostics")
+                Text("Диагностика")
             } footer: {
-                Text("Diagnostics are read-only: they do not create a Mutagen session or start Claude Code.")
+                Text("Диагностика работает только на чтение: она не создаёт сессию Mutagen и не запускает Claude Code.")
             }
 
             Section {
                 HStack {
-                    Button("Save Configuration") { model.saveSettings() }
+                    Button("Сохранить настройки") { model.saveSettings() }
                     Spacer()
-                    Button("Start / Reconnect") { model.start() }
+                    Button("Запустить / переподключить") { model.start() }
                         .keyboardShortcut(.defaultAction)
                 }
             } footer: {
-                Text("Start / Reconnect runs the same preflight checks before changing any remote or synchronization state.")
+                Text("Перед изменением удалённой сессии или синхронизации Remote AI повторно выполняет те же предварительные проверки.")
             }
         }
         .formStyle(.grouped)
-        .frame(width: 560)
-        .frame(minHeight: 760)
+        .frame(width: 620)
+        .frame(minHeight: 820)
     }
 }

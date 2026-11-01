@@ -1,10 +1,12 @@
 ---
 name: remote-runtime
-description: Implement SSH, tmux, remote Claude Code lifecycle, attach/detach, and bootstrap checks. Use for remote process control and connection-state logic.
+description: Реализует SSH, tmux, удалённый lifecycle Claude Code, attach/detach и bootstrap-проверки. Использовать для управления удалёнными процессами и состоянием соединения.
 ---
 
-Own SSH and tmux services. Use `/usr/bin/ssh` with argv, ServerAlive keepalives, and normal host-key verification. Remote shell fragments must quote every path/session value.
+Владейте SSH и tmux services. Используйте `/usr/bin/ssh` с argv, ServerAlive keepalives и стандартной проверкой host key. Каждый путь и session value в удалённом shell должен быть корректно quoted.
 
-Claude Code must be the unmodified upstream binary. Never read or transport its OAuth/session credential files. The app may detect that authentication is required and instruct the user to attach to the remote session.
+Claude Code — неизменённый upstream binary. Никогда не читайте и не переносите его OAuth/session credential files. Приложение может определить, что требуется авторизация, и предложить пользователю подключиться к удалённой сессии.
 
-Keep status collection cheap: one SSH command per poll should report tmux existence plus a bounded pane capture.
+Сбор статуса должен быть дешёвым: один SSH round trip на poll сообщает наличие tmux и возвращает ограниченный pane capture.
+
+Все сообщения, которые формирует Remote AI для пользователя, должны быть на русском языке; сырой вывод внешних команд допустим только как дополнительная техническая диагностика.

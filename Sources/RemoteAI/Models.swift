@@ -10,12 +10,12 @@ enum MascotState: Equatable, Sendable {
 
     var accessibilityLabel: String {
         switch self {
-        case .offline: "Remote AI offline"
-        case .connecting: "Remote AI connecting"
-        case .syncing: "Remote AI synchronizing files"
-        case .thinking: "Claude Code is working"
-        case .waiting: "Claude Code is waiting for input"
-        case .error(let message): "Remote AI error: \(message)"
+        case .offline: "Remote AI: не в сети"
+        case .connecting: "Remote AI: подключение"
+        case .syncing: "Remote AI: синхронизация файлов"
+        case .thinking: "Claude Code выполняет задачу"
+        case .waiting: "Claude Code ожидает ввода"
+        case .error(let message): "Ошибка Remote AI: \(message)"
         }
     }
 
@@ -78,19 +78,19 @@ struct RemoteAIConfig: Codable, Equatable, Sendable {
         let remotePattern = /^[A-Za-z0-9._~\/-]+$/
 
         guard !host.isEmpty, host.wholeMatch(of: hostPattern) != nil else {
-            throw RemoteAIError.invalidConfiguration("Host must be a hostname, IPv4 address, or SSH alias using letters, digits, dot, underscore, or hyphen.")
+            throw RemoteAIError.invalidConfiguration("Укажите имя хоста, IPv4-адрес или SSH-псевдоним. Разрешены буквы, цифры, точка, подчёркивание и дефис.")
         }
         guard !user.isEmpty, user.wholeMatch(of: userPattern) != nil else {
-            throw RemoteAIError.invalidConfiguration("SSH user contains unsupported characters.")
+            throw RemoteAIError.invalidConfiguration("Имя SSH-пользователя содержит недопустимые символы.")
         }
         guard (1...65535).contains(port) else {
-            throw RemoteAIError.invalidConfiguration("SSH port must be between 1 and 65535.")
+            throw RemoteAIError.invalidConfiguration("SSH-порт должен быть в диапазоне от 1 до 65535.")
         }
         guard !remoteRoot.isEmpty, remoteRoot.wholeMatch(of: remotePattern) != nil, !remoteRoot.contains(":") else {
-            throw RemoteAIError.invalidConfiguration("Remote root must be a simple path without colons or shell syntax.")
+            throw RemoteAIError.invalidConfiguration("Корневая папка на сервере должна быть обычным путём без двоеточий и shell-синтаксиса.")
         }
         guard pollIntervalSeconds >= 1 else {
-            throw RemoteAIError.invalidConfiguration("Polling interval must be at least one second.")
+            throw RemoteAIError.invalidConfiguration("Интервал обновления состояния должен быть не меньше одной секунды.")
         }
     }
 }

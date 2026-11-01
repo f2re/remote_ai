@@ -20,7 +20,7 @@ enum ToolLocator {
         }
 
         throw RemoteAIError.dependencyMissing(
-            "Mutagen is not installed or is not discoverable. Install it with: brew install mutagen-io/mutagen/mutagen"
+            "Mutagen не установлен или не найден. Установите его командой: brew install mutagen-io/mutagen/mutagen"
         )
     }
 }
