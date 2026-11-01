@@ -39,11 +39,13 @@ struct SettingsView: View {
 
                 LabeledContent("Refresh status") {
                     HStack(spacing: 6) {
-                        TextField("Seconds", value: $model.config.pollIntervalSeconds, format: .number)
-                            .frame(width: 64)
+                        TextField("", value: $model.config.pollIntervalSeconds, format: .number)
+                            .frame(width: 44)
                             .multilineTextAlignment(.trailing)
+                            .accessibilityLabel("Refresh interval in seconds")
                         Text("seconds")
                             .foregroundStyle(.secondary)
+                            .fixedSize()
                     }
                 }
             } header: {
@@ -57,10 +59,10 @@ struct SettingsView: View {
                         .keyboardShortcut(.defaultAction)
                 }
             } footer: {
-                Text("Connection settings are validated together when saved so an incomplete host or path is never used to start a remote session.")
+                Text("Connection settings are validated together before a remote session starts.")
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520)
+        .frame(width: 540, minHeight: 650)
     }
 }
