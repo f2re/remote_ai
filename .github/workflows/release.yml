@@ -36,6 +36,8 @@ jobs:
         run: |
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
+          elif [[ "$GITHUB_REF" == "refs/heads/release/publish-v0.1.0" ]]; then
+            VERSION="0.1.0"
           elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             VERSION="${{ inputs.version }}"
           else
@@ -125,20 +127,29 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/release/publish-v0.1.0'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            RELEASE_TAG="$GITHUB_REF_NAME"
+            RELEASE_TARGET="$GITHUB_SHA"
+          else
+            RELEASE_TAG="v0.1.0"
+            RELEASE_TARGET="ff866968af68ddb2029f0925762f29180321e20d"
+          fi
+
           EXTRA=()
           if [[ "${NOTARIZED_RELEASE:-0}" != "1" ]]; then
             EXTRA+=(--prerelease)
           fi
 
-          gh release create "$GITHUB_REF_NAME" \
+          gh release create "$RELEASE_TAG" \
             "$APP_ZIP" \
             "$SCREENSHOTS_ZIP" \
             SHA256SUMS.txt \
-            --title "Remote AI $GITHUB_REF_NAME" \
+            --target "$RELEASE_TARGET" \
+            --title "Remote AI $RELEASE_TAG" \
             --generate-notes \
             "${EXTRA[@]}"
