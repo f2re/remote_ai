@@ -35,28 +35,40 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Require tag target to be on main
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Resolve source and version
         shell: bash
         run: |
           git fetch origin main --no-tags
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "Release tags must point to a commit contained in main." >&2
-            exit 1
-          fi
 
-      - name: Resolve version
-        shell: bash
-        run: |
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "Release tags must point to a commit contained in main." >&2
+              exit 1
+            fi
             VERSION="${GITHUB_REF_NAME#v}"
+            PUBLISH_TAG="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_REF_NAME" =~ ^release/publish-v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            PUBLISH_TAG="v$VERSION"
+            MAIN_SHA="$(git rev-parse origin/main)"
+            if ! git merge-base --is-ancestor "$MAIN_SHA" "$GITHUB_SHA"; then
+              echo "Publish branch is not based on current main; recreate it from main." >&2
+              exit 1
+            fi
+            echo "RELEASE_MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+            git checkout --detach "$MAIN_SHA"
+            git submodule update --init --recursive
           elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             VERSION="${{ inputs.version }}"
+            PUBLISH_TAG=""
           else
             VERSION="0.2.0-rc.${GITHUB_RUN_NUMBER}"
+            PUBLISH_TAG=""
           fi
+
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "PUBLISH_TAG=$PUBLISH_TAG" >> "$GITHUB_ENV"
 
       - name: Toolchain
         run: swift --version
@@ -133,7 +145,7 @@ jobs:
           ditto -c -k --keepParent "$RUNNER_TEMP/RemoteAI-shots" "$SCREENSHOTS_ZIP"
           unzip -t "$SCREENSHOTS_ZIP"
           shasum -a 256 "$APP_ZIP" "$SCREENSHOTS_ZIP" > SHA256SUMS.txt
-          shasum -a 256 "$RUNNER_TEMP"/RemoteAI-shots/*.png >> SHA256SUMS.txt
+          (cd "$RUNNER_TEMP/RemoteAI-shots" && shasum -a 256 *.png) >> SHA256SUMS.txt
           echo "SCREENSHOTS_ZIP=$SCREENSHOTS_ZIP" >> "$GITHUB_ENV"
 
       - name: Upload verified release candidate
@@ -148,48 +160,49 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Promote verified publish branch to version tag
+      - name: Create verified publish-branch tag
         if: startsWith(github.ref, 'refs/heads/release/publish-v')
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME#release/publish-}"
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Publish branch must be named release/publish-vMAJOR.MINOR.PATCH" >&2
+          TAG="$PUBLISH_TAG"
+          MAIN_SHA="$RELEASE_MAIN_SHA"
+          REMOTE_SHA="$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')"
+          if [[ -n "$REMOTE_SHA" && "$REMOTE_SHA" != "$MAIN_SHA" ]]; then
+            echo "Tag $TAG already exists at $REMOTE_SHA, not verified main $MAIN_SHA." >&2
             exit 1
           fi
-
-          git fetch origin main --no-tags
-          MAIN_SHA="$(git rev-parse origin/main)"
-          if ! git merge-base --is-ancestor "$MAIN_SHA" "$GITHUB_SHA"; then
-            echo "Publish branch is not based on current main; recreate it from main." >&2
-            exit 1
+          if [[ -z "$REMOTE_SHA" ]]; then
+            git tag "$TAG" "$MAIN_SHA"
+            git push origin "refs/tags/$TAG"
           fi
-
-          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists; refusing to move an existing release tag." >&2
-            exit 1
-          fi
-
-          git tag "$TAG" "$MAIN_SHA"
-          git push origin "refs/tags/$TAG"
-          echo "Promoted verified main $MAIN_SHA to $TAG"
+          echo "Verified tag $TAG -> $MAIN_SHA"
 
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/release/publish-v')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          TAG="$PUBLISH_TAG"
           EXTRA=()
           if [[ "${NOTARIZED_RELEASE:-0}" != "1" ]]; then
             EXTRA+=(--prerelease)
           fi
 
-          gh release create "$GITHUB_REF_NAME" \
-            "$APP_ZIP" \
-            "$SCREENSHOTS_ZIP" \
-            SHA256SUMS.txt \
-            "$RUNNER_TEMP"/RemoteAI-shots/*.png \
-            --title "Remote AI $GITHUB_REF_NAME" \
-            --generate-notes \
-            "${EXTRA[@]}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              "$APP_ZIP" \
+              "$SCREENSHOTS_ZIP" \
+              SHA256SUMS.txt \
+              "$RUNNER_TEMP"/RemoteAI-shots/*.png \
+              --clobber
+          else
+            gh release create "$TAG" \
+              "$APP_ZIP" \
+              "$SCREENSHOTS_ZIP" \
+              SHA256SUMS.txt \
+              "$RUNNER_TEMP"/RemoteAI-shots/*.png \
+              --title "Remote AI $TAG" \
+              --generate-notes \
+              "${EXTRA[@]}"
+          fi
