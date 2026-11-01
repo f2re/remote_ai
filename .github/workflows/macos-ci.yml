@@ -2,37 +2,66 @@ name: macOS CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  verify:
     runs-on: macos-latest
+    env:
+      CI_APP_VERSION: "0.2.0"
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
       - name: Toolchain
         run: swift --version
-      - name: Tests
-        run: swift test
-      - name: Build
-        run: swift build
-      - name: Package app
-        run: ./build.sh
 
-  screenshots:
-    runs-on: macos-latest
-    needs: build-and-test
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Render light and dark release screenshots
+      - name: Unit tests
+        run: swift test --parallel
+
+      - name: Native release compile
+        run: swift build -c release
+
+      - name: Package Universal 2 app
+        run: APP_VERSION="$CI_APP_VERSION" BUILD_NUMBER="$GITHUB_RUN_NUMBER" ./build.sh
+
+      - name: Render deterministic release screenshots
         run: ./tools/snap.sh "$RUNNER_TEMP/RemoteAI-shots"
-      - name: Upload screenshots
+
+      - name: Verify release bundle
+        run: ./tools/verify-release.sh ".build/app/RemoteAI.app" "$RUNNER_TEMP/RemoteAI-shots" "$CI_APP_VERSION"
+
+      - name: Package CI candidate
+        shell: bash
+        run: |
+          ZIP="RemoteAI-${CI_APP_VERSION}-ci-${GITHUB_RUN_NUMBER}-macOS.zip"
+          SHOTS="RemoteAI-${CI_APP_VERSION}-ci-${GITHUB_RUN_NUMBER}-screenshots.zip"
+          ditto -c -k --sequesterRsrc --keepParent ".build/app/RemoteAI.app" "$ZIP"
+          ditto -c -k --keepParent "$RUNNER_TEMP/RemoteAI-shots" "$SHOTS"
+          unzip -t "$ZIP"
+          shasum -a 256 "$ZIP" "$SHOTS" > SHA256SUMS.txt
+          echo "CI_APP_ZIP=$ZIP" >> "$GITHUB_ENV"
+          echo "CI_SHOTS_ZIP=$SHOTS" >> "$GITHUB_ENV"
+
+      - name: Upload verified candidate
         uses: actions/upload-artifact@v4
         with:
-          name: RemoteAI-screenshots
-          path: ${{ runner.temp }}/RemoteAI-shots/*.png
+          name: RemoteAI-${{ env.CI_APP_VERSION }}-${{ github.run_number }}-verified
+          path: |
+            ${{ env.CI_APP_ZIP }}
+            ${{ env.CI_SHOTS_ZIP }}
+            SHA256SUMS.txt
+            ${{ runner.temp }}/RemoteAI-shots/*.png
           if-no-files-found: error
           retention-days: 14

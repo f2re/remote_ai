@@ -11,10 +11,14 @@ on:
       version:
         description: "Artifact version for a dry-run build"
         required: true
-        default: "0.1.0-dev"
+        default: "0.2.0"
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -31,24 +35,46 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Resolve version
+      - name: Resolve source and version
         shell: bash
         run: |
+          git fetch origin main --no-tags
+
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "Release tags must point to a commit contained in main." >&2
+              exit 1
+            fi
             VERSION="${GITHUB_REF_NAME#v}"
+            PUBLISH_TAG="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_REF_NAME" =~ ^release/publish-v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            PUBLISH_TAG="v$VERSION"
+            MAIN_SHA="$(git rev-parse origin/main)"
+            if ! git merge-base --is-ancestor "$MAIN_SHA" "$GITHUB_SHA"; then
+              echo "Publish branch is not based on current main; recreate it from main." >&2
+              exit 1
+            fi
+            echo "RELEASE_MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
+            git checkout --detach "$MAIN_SHA"
+            git submodule update --init --recursive
           elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             VERSION="${{ inputs.version }}"
+            PUBLISH_TAG=""
           else
-            VERSION="0.1.0-rc.${GITHUB_RUN_NUMBER}"
+            VERSION="0.2.0-rc.${GITHUB_RUN_NUMBER}"
+            PUBLISH_TAG=""
           fi
+
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "PUBLISH_TAG=$PUBLISH_TAG" >> "$GITHUB_ENV"
 
       - name: Toolchain
         run: swift --version
 
-      - name: Tests
-        run: swift test
+      - name: Unit tests
+        run: swift test --parallel
 
       - name: Import Developer ID certificate
         if: env.MACOS_CERTIFICATE_P12 != ''
@@ -75,11 +101,14 @@ jobs:
           echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           echo "SIGNED_RELEASE=1" >> "$GITHUB_ENV"
 
-      - name: Build app bundle
-        run: ./build.sh
+      - name: Build Universal 2 app bundle
+        run: APP_VERSION="$APP_VERSION" BUILD_NUMBER="$BUILD_NUMBER" ./build.sh
 
       - name: Render release screenshots
         run: ./tools/snap.sh "$RUNNER_TEMP/RemoteAI-shots"
+
+      - name: Verify app and screenshots
+        run: ./tools/verify-release.sh ".build/app/RemoteAI.app" "$RUNNER_TEMP/RemoteAI-shots" "$APP_VERSION"
 
       - name: Package app for notarization
         shell: bash
@@ -87,6 +116,7 @@ jobs:
           ZIP="RemoteAI-${APP_VERSION}-macOS.zip"
           rm -f "$ZIP"
           ditto -c -k --sequesterRsrc --keepParent ".build/app/RemoteAI.app" "$ZIP"
+          unzip -t "$ZIP"
           echo "APP_ZIP=$ZIP" >> "$GITHUB_ENV"
 
       - name: Notarize and staple
@@ -100,9 +130,12 @@ jobs:
             --wait
           xcrun stapler staple ".build/app/RemoteAI.app"
           xcrun stapler validate ".build/app/RemoteAI.app"
+          spctl --assess --type execute --verbose=4 ".build/app/RemoteAI.app"
+          ./tools/verify-release.sh ".build/app/RemoteAI.app" "$RUNNER_TEMP/RemoteAI-shots" "$APP_VERSION"
 
           rm -f "$APP_ZIP"
           ditto -c -k --sequesterRsrc --keepParent ".build/app/RemoteAI.app" "$APP_ZIP"
+          unzip -t "$APP_ZIP"
           echo "NOTARIZED_RELEASE=1" >> "$GITHUB_ENV"
 
       - name: Package screenshots and checksums
@@ -110,10 +143,12 @@ jobs:
         run: |
           SCREENSHOTS_ZIP="RemoteAI-${APP_VERSION}-screenshots.zip"
           ditto -c -k --keepParent "$RUNNER_TEMP/RemoteAI-shots" "$SCREENSHOTS_ZIP"
+          unzip -t "$SCREENSHOTS_ZIP"
           shasum -a 256 "$APP_ZIP" "$SCREENSHOTS_ZIP" > SHA256SUMS.txt
+          (cd "$RUNNER_TEMP/RemoteAI-shots" && shasum -a 256 *.png) >> SHA256SUMS.txt
           echo "SCREENSHOTS_ZIP=$SCREENSHOTS_ZIP" >> "$GITHUB_ENV"
 
-      - name: Upload release candidate artifacts
+      - name: Upload verified release candidate
         uses: actions/upload-artifact@v4
         with:
           name: RemoteAI-${{ env.APP_VERSION }}-release
@@ -123,22 +158,51 @@ jobs:
             SHA256SUMS.txt
             ${{ runner.temp }}/RemoteAI-shots/*.png
           if-no-files-found: error
+          retention-days: 90
+
+      - name: Create verified publish-branch tag
+        if: startsWith(github.ref, 'refs/heads/release/publish-v')
+        shell: bash
+        run: |
+          TAG="$PUBLISH_TAG"
+          MAIN_SHA="$RELEASE_MAIN_SHA"
+          REMOTE_SHA="$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')"
+          if [[ -n "$REMOTE_SHA" && "$REMOTE_SHA" != "$MAIN_SHA" ]]; then
+            echo "Tag $TAG already exists at $REMOTE_SHA, not verified main $MAIN_SHA." >&2
+            exit 1
+          fi
+          if [[ -z "$REMOTE_SHA" ]]; then
+            git tag "$TAG" "$MAIN_SHA"
+            git push origin "refs/tags/$TAG"
+          fi
+          echo "Verified tag $TAG -> $MAIN_SHA"
 
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/release/publish-v')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          TAG="$PUBLISH_TAG"
           EXTRA=()
           if [[ "${NOTARIZED_RELEASE:-0}" != "1" ]]; then
             EXTRA+=(--prerelease)
           fi
 
-          gh release create "$GITHUB_REF_NAME" \
-            "$APP_ZIP" \
-            "$SCREENSHOTS_ZIP" \
-            SHA256SUMS.txt \
-            --title "Remote AI $GITHUB_REF_NAME" \
-            --generate-notes \
-            "${EXTRA[@]}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              "$APP_ZIP" \
+              "$SCREENSHOTS_ZIP" \
+              SHA256SUMS.txt \
+              "$RUNNER_TEMP"/RemoteAI-shots/*.png \
+              --clobber
+          else
+            gh release create "$TAG" \
+              "$APP_ZIP" \
+              "$SCREENSHOTS_ZIP" \
+              SHA256SUMS.txt \
+              "$RUNNER_TEMP"/RemoteAI-shots/*.png \
+              --title "Remote AI $TAG" \
+              --generate-notes \
+              "${EXTRA[@]}"
+          fi

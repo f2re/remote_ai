@@ -54,7 +54,7 @@ struct RemoteAIConfig: Codable, Equatable, Sendable {
     var host: String = ""
     var user: String = NSUserName()
     var port: Int = 22
-    var sshKeyPath: String = "~/.ssh/id_ed25519"
+    var sshKeyPath: String = ""
     var remoteRoot: String = ".remote-ai/workspaces"
     var pollIntervalSeconds: Double = 3
     var notifyWhenWaiting: Bool = true
@@ -144,14 +144,18 @@ struct RuntimeSnapshot: Equatable, Sendable {
 enum RemoteAIError: LocalizedError, Equatable {
     case invalidConfiguration(String)
     case dependencyMissing(String)
+    case connectionFailed(String)
     case commandFailed(String)
+    case preflightFailed(String)
     case synchronizationConflict(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidConfiguration(let message),
              .dependencyMissing(let message),
+             .connectionFailed(let message),
              .commandFailed(let message),
+             .preflightFailed(let message),
              .synchronizationConflict(let message):
             message
         }

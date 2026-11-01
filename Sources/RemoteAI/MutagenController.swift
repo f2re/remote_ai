@@ -3,22 +3,47 @@ import Foundation
 struct MutagenController: Sendable {
     private let runner = ProcessRunner()
 
+    func sessionName(workspace: Workspace, config: RemoteAIConfig) -> String {
+        let route = "\(config.user)@\(config.host):\(config.port)|\(workspace.remotePath)"
+        let routeHash = String(StableHash.fnv1a64(route).prefix(10))
+        let workspacePart = String(workspace.id.prefix(40))
+        return "rai-\(workspacePart)-\(routeHash)"
+    }
+
     func ensureSession(workspace: Workspace, config: RemoteAIConfig) async throws {
-        let executable = try await mutagenExecutable()
+        let executable = try await ToolLocator.mutagenExecutable(runner: runner)
         _ = try? await runner.run(executable: executable, arguments: ["daemon", "start"])
 
-        let existing = try await runner.run(executable: executable, arguments: ["sync", "list", workspace.id])
-        if existing.exitCode == 0, existing.stdout.contains("Name: \(workspace.id)") {
-            let resumed = try await runner.run(executable: executable, arguments: ["sync", "resume", workspace.id])
+        let desiredName = sessionName(workspace: workspace, config: config)
+        let listing = try await runner.run(executable: executable, arguments: ["sync", "list"])
+        guard listing.exitCode == 0 else {
+            throw RemoteAIError.commandFailed(listing.combinedOutput)
+        }
+
+        let existingNames = MutagenSessionListParser.names(from: listing.stdout)
+        if existingNames.contains(desiredName) {
+            let resumed = try await runner.run(executable: executable, arguments: ["sync", "resume", desiredName])
             guard resumed.exitCode == 0 else {
                 throw RemoteAIError.commandFailed(resumed.combinedOutput)
             }
             return
         }
 
+        let staleNames = existingNames.filter { name in
+            name == workspace.id || (name.hasPrefix(routeSessionPrefix(workspace: workspace)) && name != desiredName)
+        }
+        for staleName in staleNames {
+            let paused = try await runner.run(executable: executable, arguments: ["sync", "pause", staleName])
+            guard paused.exitCode == 0 else {
+                throw RemoteAIError.commandFailed(
+                    "Unable to pause stale Mutagen session \(staleName) before switching routes. \(paused.combinedOutput)"
+                )
+            }
+        }
+
         var arguments = [
             "sync", "create",
-            "--name=\(workspace.id)",
+            "--name=\(desiredName)",
             "--sync-mode=two-way-safe"
         ]
         for ignored in RemoteAIConfig.defaultIgnores {
@@ -32,27 +57,34 @@ struct MutagenController: Sendable {
         }
     }
 
-    func flush(workspace: Workspace) async throws {
-        let executable = try await mutagenExecutable()
-        let result = try await runner.run(executable: executable, arguments: ["sync", "flush", workspace.id])
+    func flush(workspace: Workspace, config: RemoteAIConfig) async throws {
+        let executable = try await ToolLocator.mutagenExecutable(runner: runner)
+        let result = try await runner.run(
+            executable: executable,
+            arguments: ["sync", "flush", sessionName(workspace: workspace, config: config)]
+        )
         guard result.exitCode == 0 else {
             throw RemoteAIError.commandFailed(result.combinedOutput)
         }
     }
 
-    func pause(workspace: Workspace) async {
-        guard let executable = try? await mutagenExecutable() else { return }
-        _ = try? await runner.run(executable: executable, arguments: ["sync", "pause", workspace.id])
+    func pause(workspace: Workspace, config: RemoteAIConfig) async {
+        guard let executable = try? await ToolLocator.mutagenExecutable(runner: runner) else { return }
+        _ = try? await runner.run(
+            executable: executable,
+            arguments: ["sync", "pause", sessionName(workspace: workspace, config: config)]
+        )
     }
 
-    func status(workspace: Workspace) async -> SyncHealth {
-        guard let executable = try? await mutagenExecutable() else {
+    func status(workspace: Workspace, config: RemoteAIConfig) async -> SyncHealth {
+        guard let executable = try? await ToolLocator.mutagenExecutable(runner: runner) else {
             return .missing
         }
-        guard let result = try? await runner.run(executable: executable, arguments: ["sync", "list", workspace.id]) else {
+        let name = sessionName(workspace: workspace, config: config)
+        guard let result = try? await runner.run(executable: executable, arguments: ["sync", "list", name]) else {
             return .unavailable("Mutagen status command failed")
         }
-        guard result.exitCode == 0, result.stdout.contains("Name: \(workspace.id)") else {
+        guard result.exitCode == 0, result.stdout.contains("Name: \(name)") else {
             return .missing
         }
         return MutagenStatusParser.parse(result.stdout)
@@ -63,13 +95,21 @@ struct MutagenController: Sendable {
         return "\(config.user)@\(config.host)\(port):\(workspace.remotePath)"
     }
 
-    private func mutagenExecutable() async throws -> String {
-        let result = try await runner.run(executable: "/usr/bin/which", arguments: ["mutagen"])
-        let path = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard result.exitCode == 0, !path.isEmpty else {
-            throw RemoteAIError.dependencyMissing("Mutagen is not installed. Install it with Homebrew: brew install mutagen-io/mutagen/mutagen")
-        }
-        return path
+    private func routeSessionPrefix(workspace: Workspace) -> String {
+        "rai-\(String(workspace.id.prefix(40)))-"
+    }
+}
+
+enum MutagenSessionListParser {
+    static func names(from output: String) -> [String] {
+        output
+            .split(separator: "\n")
+            .compactMap { line -> String? in
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard trimmed.hasPrefix("Name:") else { return nil }
+                let value = trimmed.dropFirst("Name:".count).trimmingCharacters(in: .whitespacesAndNewlines)
+                return value.isEmpty ? nil : value
+            }
     }
 }
 
