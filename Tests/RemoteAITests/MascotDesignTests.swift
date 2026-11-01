@@ -21,4 +21,33 @@ final class MascotDesignTests: XCTestCase {
         XCTAssertFalse(PixelCloudArt.isFilled(x: 16, y: 0))
         XCTAssertFalse(PixelCloudArt.isFilled(x: 0, y: 10))
     }
+
+    func testFirstRunPrimaryActionOpensSettingsBeforeProjectSelection() {
+        XCTAssertEqual(
+            MascotState.offline.primaryAction(hasConfiguredHost: false, hasWorkspace: false),
+            .openSettings
+        )
+    }
+
+    func testConfiguredHostWithoutWorkspaceChoosesProject() {
+        XCTAssertEqual(
+            MascotState.offline.primaryAction(hasConfiguredHost: true, hasWorkspace: false),
+            .chooseProject
+        )
+    }
+
+    func testOfflineConfiguredWorkspaceStartsAndActiveWorkspaceOpensWarp() {
+        XCTAssertEqual(
+            MascotState.offline.primaryAction(hasConfiguredHost: true, hasWorkspace: true),
+            .startOrReconnect
+        )
+        XCTAssertEqual(
+            MascotState.thinking.primaryAction(hasConfiguredHost: true, hasWorkspace: true),
+            .openWarp
+        )
+        XCTAssertEqual(
+            MascotState.error("failed").primaryAction(hasConfiguredHost: true, hasWorkspace: true),
+            .startOrReconnect
+        )
+    }
 }

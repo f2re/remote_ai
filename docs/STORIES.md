@@ -36,12 +36,12 @@ As the user, I can recognize offline, connecting, syncing, thinking, waiting and
 Depends: S-002
 Issue: #10 (`design-kit`, `macos-ui`)
 Acceptance:
-- [unit] Every `MascotState` maps deterministically to a face, indicator and motion policy.
+- [unit] Pixel-cloud geometry is deterministic and covered by tests.
 - [snap] The cloud silhouette is code-driven pixel geometry, not an SF Symbol placeholder.
 - [snap] All six states differ by expression and/or indicator geometry; status color is only reinforcement.
-- [snap] Hover and press scale inside a fixed 80 pt hit area without layout shift or clipping.
-- [manual] Right-click context actions and primary click behavior remain unchanged.
-Status: doing
+- [snap] Hover and press scale inside a fixed hit area without layout shift or clipping.
+- [manual] Right-click context actions and primary click behavior remain unchanged after setup.
+Status: done
 
 ### S-004 Respect motion and accessibility preferences
 As a keyboard/VoiceOver/Reduce Motion user, I can operate the mascot without losing state meaning.
@@ -52,13 +52,25 @@ Acceptance:
 - [manual] VoiceOver announces the semantic state and primary action hint, not decorative pixel details.
 - [manual] Context actions remain available without relying on hover.
 - [snap] Light and dark appearances preserve cloud/face contrast.
+Status: done
+
+### S-005 Complete first-run setup from the mascot
+As a new user, I can click the sleeping mascot and reach the missing setup step instead of hitting an invalid configuration later.
+Depends: S-001
+Issue: #13 (`ux-design`, `mac-design`)
+Acceptance:
+- [unit] Missing host maps the primary action to Settings before project selection or start.
+- [unit] Configured host with no workspace maps the primary action to Choose Project.
+- [unit] Configured offline/error workspace maps to Start / Reconnect; active workspace maps to Warp.
+- [manual] Settings groups Connection, Workspace and Behavior in a native grouped Form.
+- [manual] Context-menu Settings and first-run Settings use the same model action.
 Status: doing
 
 ## M2 — Verify and harden
 
-### S-005 Verify mascot build, packaging and regressions
+### S-006 Verify mascot build, packaging and regressions
 As the maintainer, I can change the mascot without breaking remote runtime behavior.
-Depends: S-003, S-004
+Depends: S-003, S-004, S-005
 Issue: #11 (`build-and-verify`, `improve-loop`, `test-mac-app`)
 Acceptance:
 - [unit] `swift test` passes.
@@ -66,11 +78,11 @@ Acceptance:
 - [self] `./build.sh` packages the app on macOS CI.
 - [manual] Panel remains draggable, floating across Spaces and full-screen auxiliary mode.
 - [unit] SSH/Mutagen/tmux state tests remain unchanged and passing.
-Status: todo
+Status: doing
 
-### S-006 Add an agent-reviewable snapshot mode
+### S-007 Add an agent-reviewable snapshot mode
 As the UI/QA agents, we can render mascot states and Settings in light/dark mode without a live remote server.
-Depends: S-005
+Depends: S-006
 Issue: follow-up after #11
 Acceptance:
 - [self] A snapshot command can force each of the six mascot states without SSH/Mutagen/tmux.
@@ -87,4 +99,4 @@ Status: todo
 
 ## Done when
 
-M1 is complete when the pixel cloud replaces the placeholder, its six states remain readable with Reduce Motion enabled, and the existing primary/context actions still drive the same `AppModel` methods. M2 is complete when CI/build/package checks pass and agents have deterministic snapshots for future improve loops.
+M1 is complete when the pixel cloud replaces the placeholder, its six states remain readable with Reduce Motion enabled, first-run setup reaches the required configuration surface, and existing runtime actions still call the same `AppModel` methods. M2 is complete when CI/build/package checks pass and agents have deterministic snapshots for future improve loops.

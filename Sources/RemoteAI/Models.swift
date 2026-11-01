@@ -29,6 +29,25 @@ enum MascotState: Equatable, Sendable {
         case .error: "exclamationmark.triangle"
         }
     }
+
+    func primaryAction(hasConfiguredHost: Bool, hasWorkspace: Bool) -> MascotPrimaryAction {
+        guard hasConfiguredHost else { return .openSettings }
+        guard hasWorkspace else { return .chooseProject }
+
+        switch self {
+        case .offline, .error:
+            return .startOrReconnect
+        case .connecting, .syncing, .thinking, .waiting:
+            return .openWarp
+        }
+    }
+}
+
+enum MascotPrimaryAction: Equatable, Sendable {
+    case openSettings
+    case chooseProject
+    case startOrReconnect
+    case openWarp
 }
 
 struct RemoteAIConfig: Codable, Equatable, Sendable {
