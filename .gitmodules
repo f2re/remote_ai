@@ -1,0 +1,4 @@
+[submodule "vendor/bama"]
+	path = vendor/bama
+	url = https://github.com/daveebbelaar/bama.git
+	branch = main
