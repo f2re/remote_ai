@@ -32,6 +32,9 @@ jobs:
       - name: Модульные тесты
         run: swift test --parallel
 
+      - name: Проверка русскоязычного контракта
+        run: ./tools/check-russian-contract.sh
+
       - name: Release-компиляция
         run: swift build -c release
 
