@@ -76,7 +76,13 @@ struct MutagenController: Sendable {
 struct MutagenStatusParser {
     static func parse(_ output: String) -> SyncHealth {
         let lower = output.lowercased()
-        if lower.contains("conflict") {
+        let conflictLines = lower.split(separator: "\n").filter { $0.contains("conflict") }
+        let hasRealConflict = conflictLines.contains { line in
+            !line.contains("conflicts: 0") &&
+            !line.contains("0 conflicts") &&
+            !line.contains("no conflicts")
+        }
+        if hasRealConflict {
             return .conflict("Mutagen reports a synchronization conflict")
         }
         if lower.contains("paused") {

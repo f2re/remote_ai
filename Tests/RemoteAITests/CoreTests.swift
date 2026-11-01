@@ -10,6 +10,11 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(first.sessionName.hasPrefix("rai-"))
     }
 
+    func testAbsoluteRemoteRootIsPreserved() {
+        let workspace = Workspace.make(localPath: "/Users/test/Projects/demo", remoteRoot: "/var/tmp/remote-ai/")
+        XCTAssertTrue(workspace.remotePath.hasPrefix("/var/tmp/remote-ai/"))
+    }
+
     func testShellQuoteHandlesSingleQuote() {
         XCTAssertEqual(Shell.quote("a'b"), "'a'\"'\"'b'")
     }
@@ -33,8 +38,28 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(MutagenStatusParser.parse(output), .conflict("Mutagen reports a synchronization conflict"))
     }
 
+    func testMutagenZeroConflictsIsReady() {
+        let output = "Name: demo\nStatus: Watching for changes\nConflicts: 0\n"
+        XCTAssertEqual(MutagenStatusParser.parse(output), .ready)
+    }
+
     func testMutagenReady() {
         let output = "Name: demo\nStatus: Watching for changes\n"
         XCTAssertEqual(MutagenStatusParser.parse(output), .ready)
+    }
+
+    func testMutagenEndpointIncludesCustomPort() {
+        var config = RemoteAIConfig()
+        config.host = "buildbox.example"
+        config.user = "dev"
+        config.port = 2222
+        let workspace = Workspace.make(localPath: "/Users/test/Projects/demo", remoteRoot: ".remote-ai/workspaces")
+        XCTAssertTrue(MutagenController().endpoint(workspace: workspace, config: config).hasPrefix("dev@buildbox.example:2222:"))
+    }
+
+    func testConfigRejectsShellSyntaxInHost() {
+        var config = RemoteAIConfig()
+        config.host = "server;rm"
+        XCTAssertThrowsError(try config.validate())
     }
 }

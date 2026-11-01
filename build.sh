@@ -3,7 +3,10 @@ set -euo pipefail
 
 CONFIGURATION="${CONFIGURATION:-release}"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-BIN_DIR="$(cd "$ROOT" && swift build -c "$CONFIGURATION" --show-bin-path)"
+cd "$ROOT"
+
+swift build -c "$CONFIGURATION"
+BIN_DIR="$(swift build -c "$CONFIGURATION" --show-bin-path)"
 APP_DIR="$ROOT/.build/app/RemoteAI.app"
 CONTENTS="$APP_DIR/Contents"
 

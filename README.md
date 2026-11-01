@@ -17,8 +17,9 @@ The agent framework is BAMA, pinned as `vendor/bama`.
 ```bash
 git clone --recurse-submodules https://github.com/f2re/remote_ai.git
 cd remote_ai
-swift build
 swift test
+./build.sh --install
+open ~/Applications/RemoteAI.app
 ```
 
 ## MVP dependencies
@@ -28,6 +29,10 @@ swift test
 - OpenSSH (built into macOS)
 - Mutagen (`brew install mutagen-io/mutagen/mutagen`)
 - remote host with `tmux` and the unmodified `claude` CLI installed/authenticated
+
+## SSH identity note
+
+Remote AI can pass an explicit identity file to direct SSH commands. Mutagen itself uses OpenSSH and inherits normal OpenSSH configuration. If the server needs a non-default key, define the host/alias, `User`, `Port`, and `IdentityFile` in `~/.ssh/config` and use that alias as the Remote AI host. This keeps direct SSH and Mutagen on the same route.
 
 ## Safety defaults
 
