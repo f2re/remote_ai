@@ -138,9 +138,9 @@ final class AppModel: ObservableObject {
         Task { [weak self] in
             guard let self, let workspace = self.workspace else { return }
             do {
-                try await self.mutagen.flush(workspace: workspace)
+                try await self.mutagen.flush(workspace: workspace, config: self.config)
                 try await self.runtime.stopClaude(workspace: workspace, config: self.config)
-                await self.mutagen.pause(workspace: workspace)
+                await self.mutagen.pause(workspace: workspace, config: self.config)
                 self.detail = "Stopped after a successful sync flush"
                 self.transition(to: .offline)
             } catch {
@@ -199,7 +199,7 @@ final class AppModel: ObservableObject {
             transition(to: .syncing)
             detail = "Preparing mirror"
             try await mutagen.ensureSession(workspace: workspace, config: config)
-            try await mutagen.flush(workspace: workspace)
+            try await mutagen.flush(workspace: workspace, config: config)
 
             try await runtime.startClaude(workspace: workspace, config: config)
             _ = await refresh()
@@ -228,7 +228,7 @@ final class AppModel: ObservableObject {
             return false
         }
 
-        let sync = await mutagen.status(workspace: workspace)
+        let sync = await mutagen.status(workspace: workspace, config: config)
         switch sync {
         case .conflict(let message):
             detail = message
@@ -239,7 +239,7 @@ final class AppModel: ObservableObject {
             transition(to: .syncing)
             return true
         case .missing:
-            detail = "Mirror is not configured for this workspace"
+            detail = "Mirror is not configured for this server route"
             transition(to: .offline)
             return false
         case .unavailable(let message):
