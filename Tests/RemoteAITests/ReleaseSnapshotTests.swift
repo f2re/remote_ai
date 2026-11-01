@@ -60,7 +60,7 @@ final class ReleaseSnapshotTests: XCTestCase {
             try render(
                 SettingsSnapshotSurface(model: model)
                     .environment(\.colorScheme, scheme),
-                size: CGSize(width: 680, height: 900),
+                size: CGSize(width: 680, height: 980),
                 to: output.appendingPathComponent("settings-\(suffix).png")
             )
         }
