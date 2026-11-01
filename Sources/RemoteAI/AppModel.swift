@@ -210,7 +210,7 @@ final class AppModel: ObservableObject {
            oldState == .thinking,
            let workspace {
             let currentDetail = detail
-            Task { await notifications.notifyWaiting(projectName: workspace.name, detail: currentDetail) }
+            Task { await notifications.notifyWaiting(workspace: workspace, detail: currentDetail) }
         }
     }
 
