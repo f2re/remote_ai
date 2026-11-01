@@ -25,6 +25,7 @@ final class ReleaseSnapshotTests: XCTestCase {
             throw XCTSkip("Set REMOTE_AI_SNAPSHOT_DIR to render release screenshots.")
         }
 
+        _ = NSApplication.shared
         let output = URL(fileURLWithPath: outputPath, isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 
@@ -65,16 +66,41 @@ final class ReleaseSnapshotTests: XCTestCase {
     }
 
     private func render<V: View>(_ view: V, size: CGSize, to url: URL) throws {
-        let renderer = ImageRenderer(
-            content: view
-                .frame(width: size.width, height: size.height)
-        )
-        renderer.scale = 2
+        let root = ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            view
+        }
+        .frame(width: size.width, height: size.height)
 
-        guard let image = renderer.nsImage,
-              let tiff = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let png = bitmap.representation(using: .png, properties: [:]) else {
+        let hosting = NSHostingView(rootView: root)
+        let rect = NSRect(origin: .zero, size: size)
+        hosting.frame = rect
+
+        let window = NSWindow(
+            contentRect: rect,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.backgroundColor = .windowBackgroundColor
+        window.contentView = hosting
+        window.orderFrontRegardless()
+        defer {
+            window.orderOut(nil)
+            window.close()
+        }
+
+        hosting.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+
+        guard let bitmap = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
+            throw SnapshotError.renderFailed(url.lastPathComponent)
+        }
+        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
+
+        guard let png = bitmap.representation(using: .png, properties: [:]) else {
             throw SnapshotError.renderFailed(url.lastPathComponent)
         }
 
@@ -166,6 +192,7 @@ private struct MascotStateSheet: View {
             }
         }
         .padding(28)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 }
@@ -174,10 +201,8 @@ private struct SettingsSnapshotSurface: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        ZStack {
-            Color(nsColor: .windowBackgroundColor)
-            SettingsView(model: model)
-                .padding(20)
-        }
+        SettingsView(model: model)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(20)
     }
 }
