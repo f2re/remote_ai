@@ -3,8 +3,6 @@ import Foundation
 
 let output = CommandLine.arguments.dropFirst().first ?? ".build/AppIcon-1024.png"
 let size = 1024
-let canvas = NSSize(width: size, height: size)
-let image = NSImage(size: canvas)
 
 let rows = [
     "......####......",
@@ -24,11 +22,26 @@ func isFilled(_ x: Int, _ y: Int) -> Bool {
     return rows[y][x] == "#"
 }
 
-image.lockFocus()
-defer { image.unlockFocus() }
+guard let bitmap = NSBitmapImageRep(
+    bitmapDataPlanes: nil,
+    pixelsWide: size,
+    pixelsHigh: size,
+    bitsPerSample: 8,
+    samplesPerPixel: 4,
+    hasAlpha: true,
+    isPlanar: false,
+    colorSpaceName: .deviceRGB,
+    bytesPerRow: 0,
+    bitsPerPixel: 0
+), let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+    fputs("Unable to create icon bitmap context\n", stderr)
+    exit(1)
+}
 
-NSColor.clear.setFill()
-NSRect(origin: .zero, size: canvas).fill()
+NSGraphicsContext.saveGraphicsState()
+NSGraphicsContext.current = context
+context.imageInterpolation = .none
+context.cgContext.clear(CGRect(x: 0, y: 0, width: size, height: size))
 
 let backgroundPath = NSBezierPath(
     roundedRect: NSRect(x: 68, y: 68, width: 888, height: 888),
@@ -83,9 +96,9 @@ NSRect(x: 766, y: 762, width: 68, height: 24).fill()
 NSColor(calibratedRed: 0.451, green: 0.922, blue: 0.745, alpha: 1).setFill()
 NSRect(x: 820, y: 660, width: 24, height: 24).fill()
 
-guard let tiff = image.tiffRepresentation,
-      let bitmap = NSBitmapImageRep(data: tiff),
-      let png = bitmap.representation(using: .png, properties: [:]) else {
+NSGraphicsContext.restoreGraphicsState()
+
+guard let png = bitmap.representation(using: .png, properties: [:]) else {
     fputs("Unable to encode app icon\n", stderr)
     exit(1)
 }
