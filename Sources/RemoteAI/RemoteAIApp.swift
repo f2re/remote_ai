@@ -14,7 +14,7 @@ struct RemoteAIApp: App {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
     let model = AppModel()
     private var mascotWindow: MascotWindowController?
 
