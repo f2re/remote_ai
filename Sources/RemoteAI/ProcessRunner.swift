@@ -17,14 +17,30 @@ struct ProcessRunner: Sendable {
         environment additions: [String: String] = [:]
     ) async throws -> ProcessResult {
         try await Task.detached(priority: .utility) {
-            let process = Process()
-            let stdoutPipe = Pipe()
-            let stderrPipe = Pipe()
+            let fileManager = FileManager.default
+            let id = UUID().uuidString
+            let stdoutURL = fileManager.temporaryDirectory.appendingPathComponent("remote-ai-\(id).out")
+            let stderrURL = fileManager.temporaryDirectory.appendingPathComponent("remote-ai-\(id).err")
+            fileManager.createFile(atPath: stdoutURL.path, contents: nil)
+            fileManager.createFile(atPath: stderrURL.path, contents: nil)
 
+            defer {
+                try? fileManager.removeItem(at: stdoutURL)
+                try? fileManager.removeItem(at: stderrURL)
+            }
+
+            let stdoutHandle = try FileHandle(forWritingTo: stdoutURL)
+            let stderrHandle = try FileHandle(forWritingTo: stderrURL)
+            defer {
+                try? stdoutHandle.close()
+                try? stderrHandle.close()
+            }
+
+            let process = Process()
             process.executableURL = URL(fileURLWithPath: executable)
             process.arguments = arguments
-            process.standardOutput = stdoutPipe
-            process.standardError = stderrPipe
+            process.standardOutput = stdoutHandle
+            process.standardError = stderrHandle
 
             if !additions.isEmpty {
                 var environment = ProcessInfo.processInfo.environment
@@ -36,9 +52,11 @@ struct ProcessRunner: Sendable {
 
             try process.run()
             process.waitUntilExit()
+            try? stdoutHandle.synchronize()
+            try? stderrHandle.synchronize()
 
-            let stdout = String(decoding: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-            let stderr = String(decoding: stderrPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            let stdout = (try? String(contentsOf: stdoutURL, encoding: .utf8)) ?? ""
+            let stderr = (try? String(contentsOf: stderrURL, encoding: .utf8)) ?? ""
             return ProcessResult(stdout: stdout, stderr: stderr, exitCode: process.terminationStatus)
         }.value
     }

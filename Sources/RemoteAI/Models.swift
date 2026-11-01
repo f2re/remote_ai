@@ -90,12 +90,18 @@ struct Workspace: Codable, Identifiable, Equatable, Sendable {
         let shortHash = String(hash.prefix(8))
         let base = String(basename.prefix(32))
         let id = "\(base)-\(shortHash)"
-        let root = remoteRoot.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
+        var root = remoteRoot.trimmingCharacters(in: .whitespacesAndNewlines)
+        while root.count > 1, root.hasSuffix("/") {
+            root.removeLast()
+        }
+        let remotePath = root.isEmpty ? id : "\(root)/\(id)"
+
         return Workspace(
             id: id,
             name: URL(fileURLWithPath: standardized).lastPathComponent,
             localPath: standardized,
-            remotePath: root.isEmpty ? id : "\(root)/\(id)",
+            remotePath: remotePath,
             sessionName: "rai-\(id)"
         )
     }

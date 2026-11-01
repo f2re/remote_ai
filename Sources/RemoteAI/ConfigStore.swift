@@ -1,7 +1,7 @@
 import Foundation
 
 struct ConfigStore: Sendable {
-    private let fileManager = FileManager.default
+    private var fileManager: FileManager { .default }
 
     var directoryURL: URL {
         fileManager.homeDirectoryForCurrentUser
