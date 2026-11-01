@@ -1,0 +1,31 @@
+name: Предложить улучшение
+description: Новая функция или изменение UX/архитектуры Remote AI
+title: "[предложение] "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую пользовательскую проблему нужно решить?
+      description: Сначала опишите проблему, а не желаемую реализацию.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Предлагаемое решение
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Как изменится пользовательский сценарий?
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Ограничения продукта
+      options:
+        - label: Решение сохраняет mascot-first подход и не добавляет dashboard без необходимости.
+        - label: Решение не требует копирования credentials Claude.
+        - label: Решение сохраняет безопасную синхронизацию и видимость конфликтов.
+        - label: Новый пользовательский текст предполагается на русском языке.

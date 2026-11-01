@@ -1,68 +1,70 @@
-# Remote AI design system
+# Дизайн-система Remote AI
 
-## Intent
+## Характер
 
-Calm, quiet, confident. The app should feel native to macOS while giving the mascot one distinct identity: a crisp pixel-art cloud.
+Спокойный, тихий, уверенный. Приложение должно ощущаться нативным для macOS, а одна отличительная идентичность — чёткое пиксельное облако.
 
-## System boundary
+## Граница системы
 
-Use native macOS surfaces for Settings, menus, notifications, alerts, keyboard behavior and accessibility. Custom drawing is reserved for the mascot and its tiny status particles.
+Нативные macOS surfaces используются для Настроек, меню, notifications, alerts, keyboard behavior и accessibility. Custom drawing зарезервирован за маскотом и маленькими status pixels.
 
-## Palette
+## Палитра
 
-- Cloud body uses semantic label/background-derived tones that adapt to appearance.
-- Cloud outline uses a stronger semantic neutral.
-- Status accents use macOS semantic system colors and always pair with expression/shape/motion.
-- Avoid fixed white/black in chrome. Avoid decorative gradients.
+- тело облака — адаптивные tones для light/dark;
+- outline — более сильный neutral;
+- status accents — semantic system colors вместе с expression/shape/motion;
+- не использовать декоративные gradients;
+- смысл состояния не зависит только от цвета.
 
-## Metrics
+## Метрики
 
-- Mascot hit area: 76–84 pt.
-- Pixel art body: about 60–64 pt wide.
-- Pixel unit: integer-scaled at runtime; geometry aligns to whole points.
-- Hover changes scale only and never changes layout bounds.
-- Floating panel has no visible card background by default.
+- hit area маскота: 76–84 pt;
+- pixel-art body: около 60–64 pt;
+- pixel unit масштабируется целым числом и выравнивается по whole points;
+- hover меняет scale, но не layout bounds;
+- floating panel по умолчанию без видимой card background.
 
-## Motion
+## Движение
 
-All mascot motion goes through shared motion tokens.
+Вся анимация использует shared motion tokens.
 
-- hover: fast, low-amplitude scale feedback
-- state: short cross-state easing
-- idle: very slow 1–2 pt vertical drift only for active states
-- syncing: small orbiting pixel satellites
-- thinking: slow drift plus sparse sparkle
-- waiting: static or near-static
-- error: no shaking loop; concerned expression plus warning cluster
+- hover — быстрый low-amplitude scale;
+- state transition — короткое easing;
+- active idle — очень медленный vertical drift 1–2 pt;
+- syncing — маленькие orbiting pixels;
+- thinking — gentle drift + sparse sparkle;
+- waiting — статичное или почти статичное;
+- error — без shake loop, только concerned expression + warning cluster.
 
-Reduce Motion disables repeating drift/orbit/sparkle loops. State changes remain visible through static expression and a short opacity transition.
+Reduce Motion выключает repeating drift/orbit/sparkle. Состояния остаются различимы статически.
 
-## Surfaces
+## Поверхности
 
-- Mascot panel: transparent, borderless, nonactivating, draggable by background, floats across Spaces.
-- Context menu: native SwiftUI/macOS menu.
-- Settings: native Settings scene and Form controls.
-- Warp/Terminal handoff: external tools, never embedded in a custom dashboard.
+- Маскот: transparent, borderless, nonactivating `NSPanel`, draggable, across Spaces/full-screen auxiliary.
+- Context menu: нативное SwiftUI/macOS menu.
+- Настройки: нативный Settings scene + Form.
+- Warp/Terminal: внешние инструменты, не embedded dashboard.
 
-## Typography
+## Типографика и язык
 
-The persistent mascot surface has no text. Tooltips, Settings and notifications use system typography only.
+На постоянной поверхности маскота нет текста. Tooltips, Настройки и notifications используют system typography. Все пользовательские строки Remote AI — русские по `docs/LOCALIZATION.md`.
 
-## Interaction
+## Взаимодействие
 
-- Primary click while offline/error: Start / Reconnect.
-- Primary click while active: Open Review in Warp.
-- Right click: native context menu.
-- Hover: immediate subtle scale/halo; no translation or layout shift.
-- VoiceOver reports semantic state, not pixel decoration.
+- первый клик ведёт к недостающему setup step;
+- `offline/error` → Запустить / переподключить;
+- active → Открыть обзор в Warp;
+- right click → native context menu;
+- hover → subtle scale/halo без сдвига;
+- VoiceOver сообщает semantic state.
 
 ## Accessibility
 
-- Meaning never depends on color alone.
-- Keep the mascot implemented as a real `Button`.
-- Respect Reduce Motion and Reduce Transparency.
-- Keep all tooltip/action words aligned with `docs/GLOSSARY.md`.
+- meaning never color-only;
+- маскот — настоящий `Button`;
+- уважать Reduce Motion/Reduce Transparency;
+- слова actions/tooltips соответствуют `docs/GLOSSARY.md`.
 
-## Agent rule
+## Правило для агентов
 
-Feature views must not introduce raw mascot colors, radii, scale factors or animation durations. Put them in `Sources/RemoteAI/UI/MascotDesign.swift` first.
+Feature views не вводят raw mascot colors, radii, scale factors или animation durations. Сначала добавить token в `Sources/RemoteAI/UI/MascotDesign.swift`. Новые пользовательские строки должны быть русскими.

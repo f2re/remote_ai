@@ -1,102 +1,101 @@
-# Remote AI stories
+# User stories Remote AI
 
-BAMA backlog for the floating pixel-cloud interface. Each story is small enough for one implementation commit and maps to the delegated work packets in `docs/BAMA-DELEGATION.md`.
+BAMA-backlog для интерфейса и эксплуатационного цикла Remote AI. Каждая story достаточно мала для отдельного implementation commit и привязана к ответственному агенту/skill.
 
-## M1 — Pixel-cloud core loop
+## M1 — Маскот и базовый цикл
 
-### S-001 Define the mascot interaction language
-As the user, I can understand what the mascot means and what a click will do without opening a dashboard.
-Depends: none
-Issue: #8 (`ux-design`)
+### S-001 — Язык взаимодействия маскота
+
+Пользователь понимает состояние маскота и результат клика без dashboard.
+
 Acceptance:
-- [manual] The brief defines one primary flow from offline to waiting and takeover in Warp.
-- [manual] All six states have a distinct expression/shape/motion description, not color alone.
-- [manual] Button, tooltip, context-menu, Settings and accessibility words use the glossary vocabulary.
-- [manual] No new modal, dashboard or permanent status label is introduced.
-Status: done
+- один основной flow от «Не в сети» до «Ожидание ввода» и передачи управления в Warp;
+- шесть состояний различимы не только цветом;
+- button/tooltip/context menu/Настройки/accessibility используют единый словарь;
+- нет нового modal/dashboard/permanent status card.
 
-UX:
-- Flow: click sleeping cloud -> connect/sync/start -> thinking -> waiting + notification -> click cloud -> Warp review/session.
-- Surface: borderless floating companion panel; configuration remains in native Settings.
-- Access: real Button, VoiceOver semantic state, right-click actions, Reduce Motion static fallbacks.
+Статус: **готово**.
 
-### S-002 Define the visual system and mascot kit
-As the user, I see a quiet native macOS companion with one recognizable custom identity.
-Depends: S-001
-Issue: #9 (`mac-design`, `design-system`)
+### S-002 — Дизайн-система и kit
+
+Пользователь видит спокойного нативного macOS-компаньона с одной узнаваемой кастомной идентичностью.
+
 Acceptance:
-- [manual] `design/DESIGN-SYSTEM.md` defines metrics, semantic palette, motion and accessibility rules.
-- [manual] `design/KIT.md` defines deterministic pixel-cloud geometry and every state expression.
-- [manual] Custom drawing is limited to mascot/status pixels; menus, Settings and notifications remain native.
-- [manual] Mascot view code uses shared tokens instead of raw animation durations, radii or status colors.
-Status: done
+- `design/DESIGN-SYSTEM.md` фиксирует metrics, palette, motion и accessibility;
+- `design/KIT.md` описывает deterministic pixel-cloud geometry и состояния;
+- custom drawing ограничен маскотом/status pixels;
+- feature views используют shared tokens.
 
-### S-003 Render a state-driven pixel-cloud mascot
-As the user, I can recognize offline, connecting, syncing, thinking, waiting and error states at a glance.
-Depends: S-002
-Issue: #10 (`design-kit`, `macos-ui`)
+Статус: **готово**.
+
+### S-003 — State-driven пиксельное облако
+
+Состояния не в сети, подключение, синхронизация, работа, ожидание и ошибка узнаются с первого взгляда.
+
+Acceptance: deterministic geometry tests, code-driven silhouette, distinct expressions/indicators, fixed hit area, без regression context/primary actions.
+
+Статус: **готово**.
+
+### S-004 — Motion и accessibility
+
+Reduce Motion/VoiceOver не лишают пользователя смысла состояния.
+
+Acceptance: static fallback, semantic VoiceOver, context actions без hover, light/dark contrast.
+
+Статус: **готово**.
+
+### S-005 — First-run настройка
+
+При первом клике пользователь попадает к реально отсутствующему шагу, а не в позднюю invalid configuration.
+
+Acceptance: missing host → Настройки; host/no workspace → выбор проекта; configured offline/error → запуск; active → Warp; единый action path.
+
+Статус: **готово**.
+
+## M2 — Проверка и эксплуатационная устойчивость
+
+### S-006 — Build/package/regression gate
+
+Acceptance: `swift test`, release build, Universal 2 packaging, codesign, light/dark snapshots и runtime tests проходят в macOS CI.
+
+Статус: **готово**.
+
+### S-007 — Детерминированные snapshots
+
+UI/QA agents могут без живого сервера получить все шесть состояний и Настройки в light/dark.
+
+Acceptance: `./tools/snap.sh`, 16 PNG, deterministic exit, release verifier.
+
+Статус: **готово**.
+
+### S-008 — Полнофункциональный remote lifecycle
+
+Acceptance: bounded SSH, preflight, route-scoped Mutagen, existing-session restore, Diagnostics, безопасный Stop/flush и transactional CI/CD.
+
+Статус: **готово в v0.2.0**.
+
+## M3 — Русскоязычный продукт
+
+### S-009 — Единый русский интерфейс и репозиторий
+
+Как русскоязычный пользователь и разработчик, я не встречаю случайно смешанный интерфейс или англоязычные проектные инструкции.
+
 Acceptance:
-- [unit] Pixel-cloud geometry is deterministic and covered by tests.
-- [snap] The cloud silhouette is code-driven pixel geometry, not an SF Symbol placeholder.
-- [snap] All six states differ by expression and/or indicator geometry; status color is only reinforcement.
-- [snap] Hover and press scale inside a fixed hit area without layout shift or clipping.
-- [manual] Right-click context actions and primary click behavior remain unchanged after setup.
-Status: done
+- UI, diagnostics, notifications, accessibility и Remote-AI-authored errors — русские;
+- raw external output не является primary status;
+- Warp review headings — русские;
+- README/docs/design/agents/templates/CI presentation — русские;
+- release snapshots — русские и без clipping;
+- release notes публикуются из `docs/releases/vX.Y.Z.md`;
+- protocol tokens/API/commands остаются технически неизменными;
+- полный macOS CI зелёный.
 
-### S-004 Respect motion and accessibility preferences
-As a keyboard/VoiceOver/Reduce Motion user, I can operate the mascot without losing state meaning.
-Depends: S-003
-Issue: #10 (`design-kit`, `macos-ui`)
-Acceptance:
-- [snap] Reduce Motion disables repeating orbit/float/search/sparkle loops while expressions remain distinct.
-- [manual] VoiceOver announces the semantic state and primary action hint, not decorative pixel details.
-- [manual] Context actions remain available without relying on hover.
-- [snap] Light and dark appearances preserve cloud/face contrast.
-Status: done
+Статус: **выполняется в v0.2.1**.
 
-### S-005 Complete first-run setup from the mascot
-As a new user, I can click the sleeping mascot and reach the missing setup step instead of hitting an invalid configuration later.
-Depends: S-001
-Issue: #13 (`ux-design`, `mac-design`)
-Acceptance:
-- [unit] Missing host maps the primary action to Settings before project selection or start.
-- [unit] Configured host with no workspace maps the primary action to Choose Project.
-- [unit] Configured offline/error workspace maps to Start / Reconnect; active workspace maps to Warp.
-- [manual] Settings groups Connection, Workspace and Behavior in a native grouped Form.
-- [manual] Context-menu Settings and first-run Settings use the same model action.
-Status: doing
+## Дальше
 
-## M2 — Verify and harden
-
-### S-006 Verify mascot build, packaging and regressions
-As the maintainer, I can change the mascot without breaking remote runtime behavior.
-Depends: S-003, S-004, S-005
-Issue: #11 (`build-and-verify`, `improve-loop`, `test-mac-app`)
-Acceptance:
-- [unit] `swift test` passes.
-- [self] `swift build` passes on macOS CI.
-- [self] `./build.sh` packages the app on macOS CI.
-- [manual] Panel remains draggable, floating across Spaces and full-screen auxiliary mode.
-- [unit] SSH/Mutagen/tmux state tests remain unchanged and passing.
-Status: doing
-
-### S-007 Add an agent-reviewable snapshot mode
-As the UI/QA agents, we can render mascot states and Settings in light/dark mode without a live remote server.
-Depends: S-006
-Issue: follow-up after #11
-Acceptance:
-- [self] A snapshot command can force each of the six mascot states without SSH/Mutagen/tmux.
-- [snap] It emits light and dark PNGs for every mascot state plus Settings.
-- [self] Snapshot mode exits deterministically and is documented for agents.
-Status: todo
-
-## Later
-
-- Multiple simultaneous remote workspaces and one mascot per workspace.
-- User-selectable mascot skins or themes.
-- Rich progress/history dashboard.
-- Embedded terminal or chat UI.
-
-## Done when
-
-M1 is complete when the pixel cloud replaces the placeholder, its six states remain readable with Reduce Motion enabled, first-run setup reaches the required configuration surface, and existing runtime actions still call the same `AppModel` methods. M2 is complete when CI/build/package checks pass and agents have deterministic snapshots for future improve loops.
+- несколько одновременных workspaces/servers;
+- launch at login;
+- опциональные project presets для review/test/log panes;
+- полноценная Developer ID/notarized distribution;
+- richer history только если она не превращает маскота в dashboard.

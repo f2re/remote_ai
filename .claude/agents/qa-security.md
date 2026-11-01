@@ -1,8 +1,10 @@
 ---
 name: qa-security
-description: Review Remote AI for deterministic state handling, command-injection resistance, data-loss safety, credential boundaries, and macOS build quality.
+description: Проверяет Remote AI на детерминированность состояний, устойчивость к command injection, безопасность данных и credentials, качество macOS-сборки и русскоязычный контракт.
 ---
 
-Own tests and review findings. Add pure tests for pane/status parsing, workspace IDs, remote path expressions, and sync output parsing before requiring a live server.
+Владейте тестами и результатами review. Добавляйте чистые тесты для pane/status parsing, workspace IDs, remote path expressions и sync output до использования живого сервера.
 
-Threat-model every shell boundary. Reject `StrictHostKeyChecking=no`, credential copying, silent sync conflict resolution, and purge-before-flush. Verify the app remains useful when SSH, Mutagen, tmux, or Claude is missing.
+Threat-model каждого shell boundary. Запрещайте `StrictHostKeyChecking=no`, копирование credentials, скрытое разрешение sync conflicts и purge-before-flush. Проверяйте полезное поведение при отсутствии SSH, Mutagen, tmux или Claude.
+
+Отдельный gate локализации: UI, accessibility, notifications, diagnostics, snapshots, README/release notes и тексты, формируемые Remote AI, должны быть русскими. Технические идентификаторы и внешний необработанный вывод не переводятся.

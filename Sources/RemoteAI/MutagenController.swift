@@ -36,7 +36,7 @@ struct MutagenController: Sendable {
             let paused = try await runner.run(executable: executable, arguments: ["sync", "pause", staleName])
             guard paused.exitCode == 0 else {
                 throw RemoteAIError.commandFailed(
-                    "Unable to pause stale Mutagen session \(staleName) before switching routes. \(paused.combinedOutput)"
+                    "Не удалось приостановить устаревшую сессию Mutagen \(staleName) перед сменой маршрута. \(paused.combinedOutput)"
                 )
             }
         }
@@ -82,7 +82,7 @@ struct MutagenController: Sendable {
         }
         let name = sessionName(workspace: workspace, config: config)
         guard let result = try? await runner.run(executable: executable, arguments: ["sync", "list", name]) else {
-            return .unavailable("Mutagen status command failed")
+            return .unavailable("Не удалось получить состояние Mutagen.")
         }
         guard result.exitCode == 0, result.stdout.contains("Name: \(name)") else {
             return .missing
@@ -123,7 +123,7 @@ struct MutagenStatusParser {
             !line.contains("no conflicts")
         }
         if hasRealConflict {
-            return .conflict("Mutagen reports a synchronization conflict")
+            return .conflict("Mutagen обнаружил конфликт синхронизации.")
         }
         if lower.contains("paused") {
             return .paused
@@ -133,11 +133,10 @@ struct MutagenStatusParser {
         }
         let activeWords = ["scanning", "staging", "reconcil", "transition", "propagating"]
         if activeWords.contains(where: lower.contains) {
-            let status = output.split(separator: "\n").first { $0.contains("Status:") }.map(String.init) ?? "Synchronizing"
-            return .syncing(status)
+            return .syncing("Mutagen синхронизирует изменения.")
         }
         if lower.contains("unable to connect") || lower.contains("disconnected") {
-            return .unavailable("Mutagen cannot reach the remote endpoint")
+            return .unavailable("Mutagen не может подключиться к удалённому рабочему пространству.")
         }
         return .ready
     }

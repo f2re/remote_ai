@@ -1,4 +1,4 @@
-name: Release
+name: Релиз
 
 on:
   push:
@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Artifact version for a dry-run build"
+        description: "Версия артефакта для тестовой сборки"
         required: true
-        default: "0.2.0"
+        default: "0.2.1"
 
 permissions:
   contents: write
@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   release:
+    name: Сборка и публикация
     runs-on: macos-latest
     env:
       MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
@@ -30,19 +31,20 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Получение исходников
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Resolve source and version
+      - name: Определение исходного commit и версии
         shell: bash
         run: |
           git fetch origin main --no-tags
 
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-              echo "Release tags must point to a commit contained in main." >&2
+              echo "Релизный тег должен указывать на commit, входящий в main." >&2
               exit 1
             fi
             VERSION="${GITHUB_REF_NAME#v}"
@@ -52,7 +54,7 @@ jobs:
             PUBLISH_TAG="v$VERSION"
             MAIN_SHA="$(git rev-parse origin/main)"
             if ! git merge-base --is-ancestor "$MAIN_SHA" "$GITHUB_SHA"; then
-              echo "Publish branch is not based on current main; recreate it from main." >&2
+              echo "Publish-ветка не основана на текущем main. Создайте её заново от актуального main." >&2
               exit 1
             fi
             echo "RELEASE_MAIN_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
@@ -62,7 +64,7 @@ jobs:
             VERSION="${{ inputs.version }}"
             PUBLISH_TAG=""
           else
-            VERSION="0.2.0-rc.${GITHUB_RUN_NUMBER}"
+            VERSION="0.2.1-rc.${GITHUB_RUN_NUMBER}"
             PUBLISH_TAG=""
           fi
 
@@ -70,13 +72,13 @@ jobs:
           echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
           echo "PUBLISH_TAG=$PUBLISH_TAG" >> "$GITHUB_ENV"
 
-      - name: Toolchain
+      - name: Версия toolchain
         run: swift --version
 
-      - name: Unit tests
+      - name: Модульные тесты
         run: swift test --parallel
 
-      - name: Import Developer ID certificate
+      - name: Импорт сертификата Developer ID
         if: env.MACOS_CERTIFICATE_P12 != ''
         shell: bash
         run: |
@@ -94,23 +96,23 @@ jobs:
 
           IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -1)"
           if [[ -z "$IDENTITY" ]]; then
-            echo "A Developer ID Application identity was not found in the supplied certificate." >&2
+            echo "В переданном сертификате не найдена identity Developer ID Application." >&2
             exit 1
           fi
 
           echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           echo "SIGNED_RELEASE=1" >> "$GITHUB_ENV"
 
-      - name: Build Universal 2 app bundle
+      - name: Сборка Universal 2 приложения
         run: APP_VERSION="$APP_VERSION" BUILD_NUMBER="$BUILD_NUMBER" ./build.sh
 
-      - name: Render release screenshots
+      - name: Создание релизных снимков
         run: ./tools/snap.sh "$RUNNER_TEMP/RemoteAI-shots"
 
-      - name: Verify app and screenshots
+      - name: Проверка приложения и снимков
         run: ./tools/verify-release.sh ".build/app/RemoteAI.app" "$RUNNER_TEMP/RemoteAI-shots" "$APP_VERSION"
 
-      - name: Package app for notarization
+      - name: Упаковка приложения для notarization
         shell: bash
         run: |
           ZIP="RemoteAI-${APP_VERSION}-macOS.zip"
@@ -119,7 +121,7 @@ jobs:
           unzip -t "$ZIP"
           echo "APP_ZIP=$ZIP" >> "$GITHUB_ENV"
 
-      - name: Notarize and staple
+      - name: Notarization и staple
         if: env.MACOS_CERTIFICATE_P12 != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_PASSWORD != ''
         shell: bash
         run: |
@@ -138,7 +140,7 @@ jobs:
           unzip -t "$APP_ZIP"
           echo "NOTARIZED_RELEASE=1" >> "$GITHUB_ENV"
 
-      - name: Package screenshots and checksums
+      - name: Упаковка снимков и контрольных сумм
         shell: bash
         run: |
           SCREENSHOTS_ZIP="RemoteAI-${APP_VERSION}-screenshots.zip"
@@ -148,7 +150,7 @@ jobs:
           (cd "$RUNNER_TEMP/RemoteAI-shots" && shasum -a 256 *.png) >> SHA256SUMS.txt
           echo "SCREENSHOTS_ZIP=$SCREENSHOTS_ZIP" >> "$GITHUB_ENV"
 
-      - name: Upload verified release candidate
+      - name: Загрузка проверенного release candidate
         uses: actions/upload-artifact@v4
         with:
           name: RemoteAI-${{ env.APP_VERSION }}-release
@@ -160,7 +162,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Create verified publish-branch tag
+      - name: Создание проверенного релизного тега
         if: startsWith(github.ref, 'refs/heads/release/publish-v')
         shell: bash
         run: |
@@ -168,28 +170,38 @@ jobs:
           MAIN_SHA="$RELEASE_MAIN_SHA"
           REMOTE_SHA="$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')"
           if [[ -n "$REMOTE_SHA" && "$REMOTE_SHA" != "$MAIN_SHA" ]]; then
-            echo "Tag $TAG already exists at $REMOTE_SHA, not verified main $MAIN_SHA." >&2
+            echo "Тег $TAG уже существует на $REMOTE_SHA, а проверенный main — $MAIN_SHA." >&2
             exit 1
           fi
           if [[ -z "$REMOTE_SHA" ]]; then
             git tag "$TAG" "$MAIN_SHA"
             git push origin "refs/tags/$TAG"
           fi
-          echo "Verified tag $TAG -> $MAIN_SHA"
+          echo "Проверенный тег: $TAG -> $MAIN_SHA"
 
-      - name: Publish GitHub release
+      - name: Публикация GitHub Release
         if: startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/release/publish-v')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           TAG="$PUBLISH_TAG"
+          NOTES_FILE="docs/releases/${TAG}.md"
+          if [[ ! -s "$NOTES_FILE" ]]; then
+            echo "Не найден обязательный русскоязычный файл release notes: $NOTES_FILE" >&2
+            exit 1
+          fi
+
           EXTRA=()
           if [[ "${NOTARIZED_RELEASE:-0}" != "1" ]]; then
             EXTRA+=(--prerelease)
           fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" \
+              --title "Remote AI $TAG" \
+              --notes-file "$NOTES_FILE" \
+              "${EXTRA[@]}"
             gh release upload "$TAG" \
               "$APP_ZIP" \
               "$SCREENSHOTS_ZIP" \
@@ -203,6 +215,6 @@ jobs:
               SHA256SUMS.txt \
               "$RUNNER_TEMP"/RemoteAI-shots/*.png \
               --title "Remote AI $TAG" \
-              --generate-notes \
+              --notes-file "$NOTES_FILE" \
               "${EXTRA[@]}"
           fi

@@ -19,7 +19,7 @@ for arg in "$@"; do
       OPEN_APP=1
       ;;
     *)
-      echo "Unknown argument: $arg" >&2
+      echo "Неизвестный аргумент: $arg" >&2
       exit 2
       ;;
   esac

@@ -1,0 +1,54 @@
+name: Сообщить об ошибке
+description: Проблема в интерфейсе, SSH/Mutagen/tmux/Claude lifecycle, сборке или релизе
+title: "[ошибка] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за отчёт. Не публикуйте OAuth/session credentials Claude, приватные ключи SSH и другие секреты.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Что произошло?
+      description: Опишите наблюдаемое поведение.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Что ожидалось?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия Remote AI
+      placeholder: "например, v0.2.1"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: Версия macOS и архитектура
+      placeholder: "например, macOS 15.1, Apple Silicon"
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Результат «Проверить настройку» и безопасная диагностика
+      description: Удалите хосты, имена пользователей, ключи, токены и другие чувствительные данные.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Проверка безопасности
+      options:
+        - label: Я удалил(а) из отчёта секреты, credentials и приватные ключи.
+          required: true

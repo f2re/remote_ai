@@ -34,7 +34,7 @@ guard let bitmap = NSBitmapImageRep(
     bytesPerRow: 0,
     bitsPerPixel: 0
 ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
-    fputs("Unable to create icon bitmap context\n", stderr)
+    fputs("Не удалось создать bitmap-контекст значка\n", stderr)
     exit(1)
 }
 
@@ -99,7 +99,7 @@ NSRect(x: 820, y: 660, width: 24, height: 24).fill()
 NSGraphicsContext.restoreGraphicsState()
 
 guard let png = bitmap.representation(using: .png, properties: [:]) else {
-    fputs("Unable to encode app icon\n", stderr)
+    fputs("Не удалось закодировать значок приложения\n", stderr)
     exit(1)
 }
 

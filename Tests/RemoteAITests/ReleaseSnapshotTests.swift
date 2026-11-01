@@ -7,22 +7,23 @@ import XCTest
 final class ReleaseSnapshotTests: XCTestCase {
     private struct NamedState {
         let name: String
+        let title: String
         let state: MascotState
     }
 
     private let states: [NamedState] = [
-        .init(name: "offline", state: .offline),
-        .init(name: "connecting", state: .connecting),
-        .init(name: "syncing", state: .syncing),
-        .init(name: "thinking", state: .thinking),
-        .init(name: "waiting", state: .waiting),
-        .init(name: "error", state: .error("Example connection error"))
+        .init(name: "offline", title: "Не в сети", state: .offline),
+        .init(name: "connecting", title: "Подключение", state: .connecting),
+        .init(name: "syncing", title: "Синхронизация", state: .syncing),
+        .init(name: "thinking", title: "Claude Code работает", state: .thinking),
+        .init(name: "waiting", title: "Ожидание ввода", state: .waiting),
+        .init(name: "error", title: "Ошибка", state: .error("Пример ошибки подключения"))
     ]
 
     func testReleaseSnapshots() throws {
         guard let outputPath = ProcessInfo.processInfo.environment["REMOTE_AI_SNAPSHOT_DIR"],
               !outputPath.isEmpty else {
-            throw XCTSkip("Set REMOTE_AI_SNAPSHOT_DIR to render release screenshots.")
+            throw XCTSkip("Укажите REMOTE_AI_SNAPSHOT_DIR для создания релизных снимков интерфейса.")
         }
 
         _ = NSApplication.shared
@@ -42,9 +43,9 @@ final class ReleaseSnapshotTests: XCTestCase {
             }
 
             try render(
-                MascotStateSheet(states: states.map { ($0.name, $0.state) })
+                MascotStateSheet(states: states.map { ($0.title, $0.state) })
                     .environment(\.colorScheme, scheme),
-                size: CGSize(width: 760, height: 520),
+                size: CGSize(width: 820, height: 560),
                 to: output.appendingPathComponent("mascot-states-\(suffix).png")
             )
 
@@ -60,7 +61,7 @@ final class ReleaseSnapshotTests: XCTestCase {
             try render(
                 SettingsSnapshotSurface(model: model)
                     .environment(\.colorScheme, scheme),
-                size: CGSize(width: 680, height: 980),
+                size: CGSize(width: 760, height: 1080),
                 to: output.appendingPathComponent("settings-\(suffix).png")
             )
         }
@@ -106,7 +107,7 @@ final class ReleaseSnapshotTests: XCTestCase {
         }
 
         try png.write(to: url, options: .atomic)
-        print("SNAPSHOT \(url.path)")
+        print("СНИМОК \(url.path)")
     }
 }
 
@@ -116,7 +117,7 @@ private enum SnapshotError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .renderFailed(let name):
-            return "Unable to render \(name)"
+            return "Не удалось создать снимок \(name)"
         }
     }
 }
@@ -160,7 +161,7 @@ private struct MascotStateSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Remote AI")
                     .font(.system(size: 22, weight: .semibold))
-                Text("Pixel-cloud state language")
+                Text("Состояния пиксельного облака")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
@@ -181,7 +182,7 @@ private struct MascotStateSheet: View {
                             height: MascotDesign.Metric.hitSize
                         )
 
-                        Text(item.0.capitalized)
+                        Text(item.0)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.secondary)
                     }

@@ -1,56 +1,54 @@
-# Pixel Cloud design kit
+# Kit пиксельного облака
 
-## Feel
+## Характер
 
-Calm. Crisp. Alive.
+Спокойное. Чёткое. Живое.
 
-## Component: PixelCloudMascot
+## Компонент `PixelCloudMascot`
 
-Purpose: the one persistent visual identity and state control for Remote AI.
+Назначение: единственная постоянная визуальная идентичность и state-control Remote AI.
 
-### Geometry
+### Геометрия
 
-- deterministic pixel grid rendered in SwiftUI code
-- cloud body uses a compact 16-column silhouette with a soft, slightly asymmetrical top and stable flat lower mass
-- eyes/mouth are separate state pixels so expressions change without redrawing the silhouette
-- status particles sit outside the face and never overlap the hit target edge
-- no SF Symbol may replace the cloud body
+- deterministic pixel grid, отрисованный SwiftUI-кодом;
+- компактный 16-column silhouette с мягкой слегка асимметричной верхней частью и устойчивым нижним mass;
+- eyes/mouth — отдельные state pixels;
+- status particles находятся вне лица и не касаются края hit target;
+- SF Symbol не заменяет тело облака.
 
-### State expressions
+### Выражения
 
-- offline: closed horizontal eyes; muted body
-- connecting: open eyes; one traveling/search pixel
-- syncing: open eyes; two orbiting satellites
-- thinking: focused eyes; one sparkle and subtle float
-- waiting: open relaxed eyes; tiny smile/steady status pixel
-- error: concerned eyes/mouth; compact warning cluster
+- **Не в сети** — закрытые горизонтальные глаза, muted body;
+- **Подключение** — открытые глаза + moving/search pixel;
+- **Синхронизация** — открытые глаза + два orbiting satellites;
+- **Claude Code работает** — focused eyes + sparkle + subtle float;
+- **Ожидание ввода** — relaxed eyes + маленькая улыбка/steady pixel;
+- **Ошибка** — concerned eyes/mouth + compact warning cluster.
 
-### Interaction states
+### Interaction
 
-- rest: full-size cloud, transparent surrounding panel
-- hover: slight scale-up plus optional faint system-material halo
-- pressed: slight scale-down, no bounce
-- disabled: not used for the primary mascot; unavailable actions are disabled in the context menu instead
+- rest — full-size cloud, transparent panel;
+- hover — небольшой scale-up + лёгкий system-material halo;
+- pressed — небольшой scale-down без bounce;
+- unavailable actions disabled в context menu, не через disabled primary mascot.
 
 ### Motion
 
-Use `MascotDesign.Motion` only. Repeating motion must stop under Reduce Motion.
+Использовать только `MascotDesign.Motion`. Repeating motion останавливается при Reduce Motion.
 
 ### Accessibility
 
-The decorative renderer is hidden from accessibility. `MascotView` exposes one button with the state-specific label from `MascotState.accessibilityLabel`.
+Decorative renderer скрыт от accessibility. `MascotView` предоставляет одну кнопку с русским смысловым label из `MascotState.accessibilityLabel`.
 
-## Component: StatusPixels
+## `StatusPixels`
 
-Purpose: reinforce state without relying on color.
+- connecting — один moving square;
+- syncing — два squares на orbit;
+- thinking — four-pixel sparkle;
+- waiting — steady square;
+- error — exclamation-like cluster;
+- offline — отсутствует.
 
-- connecting: one moving square
-- syncing: two squares in an orbit
-- thinking: four-pixel sparkle
-- waiting: one steady square
-- error: exclamation-like two/three-pixel cluster
-- offline: absent
+## Нативные элементы
 
-## Native parts
-
-Context menu, Settings, system notifications and external Warp/Terminal handoff remain native. They are not re-skinned.
+Context menu, Настройки, system notifications и Warp/Terminal handoff не переоформляются под custom skin.

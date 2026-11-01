@@ -20,10 +20,10 @@ struct WarpIntegration {
         try content.write(to: path, atomically: true, encoding: .utf8)
 
         guard let deepLink = URL(string: "warp://tab_config/\(stem)") else {
-            throw RemoteAIError.commandFailed("Could not create Warp deep link")
+            throw RemoteAIError.commandFailed("Не удалось создать deep link для Warp.")
         }
         guard NSWorkspace.shared.open(deepLink) else {
-            throw RemoteAIError.dependencyMissing("Warp is not installed or has not registered the warp:// URL scheme.")
+            throw RemoteAIError.dependencyMissing("Warp не установлен или не зарегистрировал схему URL warp://.")
         }
     }
 }
@@ -39,12 +39,12 @@ enum WarpTabConfigBuilder {
     static func content(workspace: Workspace, config: RemoteAIConfig, attachCommand: String) -> String {
         let reviewCommands = [
             "clear",
-            "printf '\\033[1mRemote AI · local review\\033[0m\\nProject: %s\\nRemote: %s@%s:%s\\n\\n' \(Shell.quote(workspace.name)) \(Shell.quote(config.user)) \(Shell.quote(config.host)) \(Shell.quote(workspace.remotePath))",
-            "printf '\\033[1mGit status\\033[0m\\n'; git status --short --branch || true",
-            "printf '\\n\\033[1mChanged tracked files\\033[0m\\n'; git diff --name-status || true",
-            "printf '\\n\\033[1mUntracked files\\033[0m\\n'; git ls-files --others --exclude-standard || true",
-            "printf '\\n\\033[1mDiff summary\\033[0m\\n'; git diff --stat || true",
-            "printf '\\n\\033[2mClick a file path in Warp to open it in the code editor. The right pane is the live Claude Code tmux session.\\033[0m\\n'"
+            "printf '\\033[1mRemote AI · локальный обзор\\033[0m\\nПроект: %s\\nСервер: %s@%s:%s\\n\\n' \(Shell.quote(workspace.name)) \(Shell.quote(config.user)) \(Shell.quote(config.host)) \(Shell.quote(workspace.remotePath))",
+            "printf '\\033[1mСостояние Git\\033[0m\\n'; git status --short --branch || true",
+            "printf '\\n\\033[1mИзменённые отслеживаемые файлы\\033[0m\\n'; git diff --name-status || true",
+            "printf '\\n\\033[1mНеотслеживаемые файлы\\033[0m\\n'; git ls-files --others --exclude-standard || true",
+            "printf '\\n\\033[1mСводка изменений\\033[0m\\n'; git diff --stat || true",
+            "printf '\\n\\033[2mНажмите путь к файлу в Warp, чтобы открыть его в редакторе. Справа находится текущая удалённая tmux-сессия Claude Code.\\033[0m\\n'"
         ]
 
         let commandArray = reviewCommands

@@ -11,13 +11,13 @@ enum SetupCheckKind: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .configuration: "Configuration"
-        case .project: "Local project"
-        case .sshKey: "SSH identity"
+        case .configuration: "Настройки"
+        case .project: "Локальный проект"
+        case .sshKey: "SSH-идентификация"
         case .mutagen: "Mutagen"
-        case .ssh: "SSH connection"
-        case .tmux: "Remote tmux"
-        case .claude: "Remote Claude Code"
+        case .ssh: "SSH-подключение"
+        case .tmux: "Удалённый tmux"
+        case .claude: "Удалённый Claude Code"
         }
     }
 }
@@ -29,9 +29,9 @@ enum SetupCheckStatus: String, Sendable {
 
     var label: String {
         switch self {
-        case .passed: "Ready"
-        case .warning: "Check"
-        case .failed: "Failed"
+        case .passed: "Готово"
+        case .warning: "Проверить"
+        case .failed: "Ошибка"
         }
     }
 
@@ -89,7 +89,7 @@ struct SetupDiagnostics: Sendable {
 
         do {
             try config.validate()
-            checks.append(.init(kind: .configuration, status: .passed, detail: "Connection settings are valid."))
+            checks.append(.init(kind: .configuration, status: .passed, detail: "Параметры подключения корректны."))
             configurationValid = true
         } catch {
             checks.append(.init(kind: .configuration, status: .failed, detail: error.localizedDescription))
@@ -102,10 +102,10 @@ struct SetupDiagnostics: Sendable {
             if exists, isDirectory.boolValue, FileManager.default.isReadableFile(atPath: workspace.localPath) {
                 checks.append(.init(kind: .project, status: .passed, detail: workspace.localPath))
             } else {
-                checks.append(.init(kind: .project, status: .failed, detail: "Choose a readable local project directory."))
+                checks.append(.init(kind: .project, status: .failed, detail: "Выберите доступную для чтения локальную папку проекта."))
             }
         } else {
-            checks.append(.init(kind: .project, status: .failed, detail: "No local project is selected."))
+            checks.append(.init(kind: .project, status: .failed, detail: "Локальный проект не выбран."))
         }
 
         checks.append(sshIdentityCheck(config: config))
@@ -118,7 +118,7 @@ struct SetupDiagnostics: Sendable {
         }
 
         guard configurationValid else {
-            checks += blockedRemoteChecks("Fix the connection settings before testing the server.")
+            checks += blockedRemoteChecks("Исправьте параметры подключения перед проверкой сервера.")
             return checks
         }
 
@@ -128,23 +128,23 @@ struct SetupDiagnostics: Sendable {
             checks.append(.init(
                 kind: .ssh,
                 status: probe.ssh ? .passed : .failed,
-                detail: probe.ssh ? "Connected to \(config.host)." : "The server did not return the Remote AI SSH probe marker."
+                detail: probe.ssh ? "Подключение к \(config.host) установлено." : "Сервер не вернул контрольную метку SSH Remote AI."
             ))
             checks.append(.init(
                 kind: .tmux,
                 status: probe.tmux ? .passed : .failed,
-                detail: probe.tmux ? (probe.tmuxVersion ?? "tmux is available.") : "Install tmux on the remote host."
+                detail: probe.tmux ? (probe.tmuxVersion ?? "tmux доступен.") : "Установите tmux на удалённом сервере."
             ))
             checks.append(.init(
                 kind: .claude,
                 status: probe.claude ? .passed : .failed,
-                detail: probe.claude ? (probe.claudeVersion ?? "Claude Code is available.") : "Install Claude Code on the remote host and make it available in the login-shell PATH."
+                detail: probe.claude ? (probe.claudeVersion ?? "Claude Code доступен.") : "Установите Claude Code на удалённом сервере и добавьте его в PATH login shell."
             ))
         } catch {
             checks += [
                 .init(kind: .ssh, status: .failed, detail: error.localizedDescription),
-                .init(kind: .tmux, status: .failed, detail: "SSH must work before tmux can be checked."),
-                .init(kind: .claude, status: .failed, detail: "SSH must work before Claude Code can be checked.")
+                .init(kind: .tmux, status: .failed, detail: "Сначала необходимо исправить SSH-подключение."),
+                .init(kind: .claude, status: .failed, detail: "Сначала необходимо исправить SSH-подключение.")
             ]
         }
 
@@ -154,12 +154,12 @@ struct SetupDiagnostics: Sendable {
     private func sshIdentityCheck(config: RemoteAIConfig) -> SetupCheck {
         let raw = config.sshKeyPath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else {
-            return .init(kind: .sshKey, status: .passed, detail: "Using OpenSSH config, ssh-agent, or default identities.")
+            return .init(kind: .sshKey, status: .passed, detail: "Используются ~/.ssh/config, ssh-agent или стандартные ключи OpenSSH.")
         }
 
         let path = LocalPath.expandTilde(raw)
         guard FileManager.default.isReadableFile(atPath: path) else {
-            return .init(kind: .sshKey, status: .failed, detail: "Identity file is not readable: \(path)")
+            return .init(kind: .sshKey, status: .failed, detail: "Файл ключа недоступен для чтения: \(path)")
         }
 
         let defaultNames = ["id_ed25519", "id_ecdsa", "id_rsa"]
@@ -170,7 +170,7 @@ struct SetupDiagnostics: Sendable {
         return .init(
             kind: .sshKey,
             status: .warning,
-            detail: "Direct SSH will use this identity. For Mutagen, also configure IdentityFile for this host in ~/.ssh/config so both transports use the same key."
+            detail: "Прямой SSH использует этот ключ. Для Mutagen также задайте IdentityFile для данного хоста в ~/.ssh/config, чтобы оба транспорта использовали один ключ."
         )
     }
 

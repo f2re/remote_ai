@@ -1,23 +1,31 @@
-# Delegated MVP backlog
+# Делегированный backlog
 
-The orchestrator owns integration. These are independent work packages for Claude Code subagents.
+`orchestrator` отвечает за интеграцию, а рабочие пакеты распределяются между специализированными агентами.
 
 ## macos-ui
 
-Build the accessory app lifecycle, transparent floating `NSPanel`, mascot states, drag/reposition behavior, context menu, Settings, and notification permission. Acceptance: no normal document window appears; VoiceOver has a state label; user can choose a folder and trigger start/stop through `AppModel`.
+Владение: accessory lifecycle, floating `NSPanel`, маскот, context menu, Настройки, notifications и accessibility.
+
+Acceptance: нет обычного document window; VoiceOver получает смысловое русское состояние; пользователь выбирает папку и запускает/останавливает сессию через `AppModel`; light/dark/Reduce Motion snapshots корректны.
 
 ## remote-runtime
 
-Build SSH reachability, remote workspace creation, tmux start/reuse/kill, bounded pane capture, and attach command generation. Acceptance: all user-derived remote values are quoted/sanitized; a missing tmux/claude binary returns a typed error; one poll uses one SSH round trip.
+Владение: SSH reachability, remote workspace bootstrap, tmux start/reuse/kill, bounded pane capture и attach commands.
+
+Acceptance: все user-derived remote values quoted/sanitized; missing tmux/claude даёт понятную русскую ошибку; один poll — один SSH round trip; credentials Claude не читаются.
 
 ## sync-engineer
 
-Build Mutagen dependency detection, create/resume/flush/terminate, endpoint generation, ignore list, and conflict/status parsing. Acceptance: default mode is `two-way-safe`; conflict maps to an error; port syntax follows Mutagen SSH endpoint rules; `.git` is ignored in MVP.
+Владение: Mutagen detection, create/resume/flush/pause, endpoint generation, ignore list, conflict/status parsing и route identity.
+
+Acceptance: `two-way-safe`; конфликт → ошибка; custom port соответствует Mutagen SSH endpoint; `.git` игнорируется; смена route не переиспользует старую session.
 
 ## qa-security
 
-Add pure tests for parser and quoting/workspace ID helpers, review credential boundaries, and create a manual failure-injection checklist. Acceptance: `swift test` does not require SSH/Mutagen and catches active/waiting/conflict classifications.
+Владение: tests, failure injection, shell/credential review, localization gate, Universal 2/package/release verification.
+
+Acceptance: `swift test` не требует SSH/Mutagen; snapshots детерминированы; пользовательские тексты русские; release candidate проходит codesign/lipo/metadata/archive checks.
 
 ## orchestrator
 
-Integrate the four packages, remove duplicate status probes, ensure state precedence, and prepare the first runnable `.app` build script. Acceptance: `swift build && swift test`; README setup path is sufficient for a new Mac.
+Интегрирует пакеты, контролирует state precedence, BAMA workflow, PR/CI и release. Acceptance: README позволяет новому пользователю понять установку без чтения исходников; merge выполняется только после зелёного CI.

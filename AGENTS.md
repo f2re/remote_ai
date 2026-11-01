@@ -1,45 +1,46 @@
 # Remote AI
 
-Native macOS mascot for supervising a persistent Claude Code session on a remote Linux/macOS host while code stays mirrored locally.
+Нативный macOS-маскот для управления постоянной сессией Claude Code на удалённом Linux/macOS-хосте при локальном зеркалировании проекта.
 
-## Agent framework
+## Агентский фреймворк
 
-BAMA is pinned at `vendor/bama`. Initialize it with:
+BAMA закреплён в `vendor/bama`. Инициализация:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-Before changing native macOS code, read the relevant BAMA skill. Start with `vendor/bama/skills/start/bama/SKILL.md`. For this repository the common skills are `new-mac-app`, `swift-swiftui`, `os-integrations`, `mac-design`, `build-and-verify`, and `test-mac-app`.
+Перед изменением нативного macOS-кода прочитайте соответствующий BAMA skill. Начальная точка: `vendor/bama/skills/start/bama/SKILL.md`. Основные skills проекта: `new-mac-app`, `swift-swiftui`, `os-integrations`, `mac-design`, `build-and-verify`, `test-mac-app`.
 
-## Product contract
+## Контракт продукта
 
-Remote AI is intentionally quiet. The default UI is one small floating mascot. It communicates only these states: offline, connecting, syncing, thinking, waiting, and error. Configuration and destructive controls stay behind a context menu or Settings.
+Remote AI намеренно остаётся тихим и компактным. Постоянный интерфейс — один небольшой плавающий маскот. Он сообщает только состояния: не в сети, подключение, синхронизация, работа Claude, ожидание ввода и ошибка. Конфигурация и потенциально разрушительные действия находятся в контекстном меню или Настройках.
 
-Architecture: local Swift app -> OpenSSH + Mutagen -> remote workspace -> tmux -> unmodified Claude Code. Claude keeps working when the Mac sleeps or disconnects. Mutagen catches up on reconnect.
+Архитектура: локальное Swift-приложение → OpenSSH + Mutagen → удалённое рабочее пространство → tmux → неизменённый Claude Code. Claude продолжает работать, когда Mac засыпает или теряет соединение; Mutagen догоняет изменения после восстановления связи.
 
-## Non-negotiable invariants
+## Обязательные инварианты
 
-- Never collect, proxy, copy, or persist Claude OAuth/session credentials. Authentication belongs to the unmodified Claude Code process on the remote machine.
-- Default sync mode is `two-way-safe`. A conflict is a visible error state, never silently resolved by deleting remote or local edits.
-- Never purge a remote workspace until a successful Mutagen flush has completed or the user explicitly forces data loss.
-- Build shell commands from escaped arguments. Do not interpolate project paths, prompts, hostnames, or session names into executable shell syntax without validation/quoting.
-- SSH host keys use normal OpenSSH trust. Never set `StrictHostKeyChecking=no`.
-- Keep the mascot surface minimal. Diagnostics live in logs and Settings.
+- Никогда не собирать, не проксировать, не копировать и не сохранять OAuth/session credentials Claude. Авторизация принадлежит неизменённому процессу Claude Code на удалённой машине.
+- Режим синхронизации по умолчанию — `two-way-safe`. Конфликт всегда видим как ошибка и никогда не разрешается удалением одной из сторон.
+- Не удалять удалённое рабочее пространство до успешного `Mutagen flush`, если пользователь явно не выбрал потерю данных.
+- Shell-команды собирать из экранированных аргументов. Не вставлять пути, prompts, hostnames или session names в исполняемый shell-синтаксис без валидации/quoting.
+- SSH host keys используют стандартное доверие OpenSSH. `StrictHostKeyChecking=no` запрещён.
+- Маскот остаётся минимальным. Диагностика живёт в логах и Настройках.
+- Пользовательский текст Remote AI — русский. Английский допустим только для технических идентификаторов, команд/API и внешнего необработанного вывода.
 
-## Roles
+## Роли
 
-- `orchestrator`: owns architecture, integration, sequencing, and acceptance.
-- `macos-ui`: owns AppKit/SwiftUI mascot, menu, Settings, notifications, accessibility.
-- `remote-runtime`: owns SSH, tmux, Claude lifecycle, attach/detach, remote bootstrap.
-- `sync-engineer`: owns Mutagen sessions, conflict detection, local/remote workspace mapping.
-- `qa-security`: owns tests, failure injection, shell/credential review, packaging gates.
+- `orchestrator`: архитектура, интеграция, последовательность и критерии приёмки.
+- `macos-ui`: AppKit/SwiftUI, маскот, меню, Настройки, уведомления, accessibility.
+- `remote-runtime`: SSH, tmux, lifecycle Claude, attach/detach и bootstrap сервера.
+- `sync-engineer`: Mutagen, конфликты и соответствие локального/удалённого workspace.
+- `qa-security`: тесты, failure injection, shell/credential review и packaging gates.
 
-## Build gates
+## Обязательные проверки
 
 ```bash
 swift build
 swift test
 ```
 
-Every feature must keep state transitions deterministic and testable without a live server. Remote integration tests are opt-in.
+Каждая функция должна сохранять детерминированные и тестируемые state transitions без обязательного живого сервера. Remote integration tests выполняются отдельно.
