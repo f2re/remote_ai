@@ -63,13 +63,15 @@ Release screenshots are generated from the real SwiftUI views in light and dark 
 
 `./tools/verify-release.sh` then verifies the application bundle, Universal 2 architectures, codesign integrity, bundle metadata and the complete 16-image screenshot set.
 
-CI publishes the application ZIP, screenshot ZIP, checksums and individual PNGs as one verified workflow artifact. Version-tag releases attach the same materials to GitHub Releases.
+CI publishes the application ZIP, screenshot ZIP, checksums and individual PNGs as one verified workflow artifact. Published releases attach the same materials to GitHub Releases.
 
 ## Releases
 
-Every push/PR runs tests, release compilation, Universal 2 app packaging, deterministic screenshots and release-bundle verification. Pushing a `v*` tag that points to a commit contained in `main` runs the release pipeline and creates a GitHub Release.
+Pull requests and pushes to `main` run the macOS verification pipeline: tests, release compilation, Universal 2 app packaging, deterministic screenshots, codesign/bundle validation, ZIP integrity and checksums. `release/**` branches use the dedicated Release workflow instead of duplicating the heavy CI job.
 
-The pipeline supports optional Developer ID signing and Apple notarization. Without signing/notarization secrets it publishes an ad-hoc signed **prerelease** for development/testing. With all Apple credentials configured, the same tag workflow signs, notarizes, staples, Gatekeeper-verifies and publishes a normal release. See `docs/RELEASE.md`.
+The preferred publish path is a branch named `release/publish-vMAJOR.MINOR.PATCH` created from the current green `main`. Push one commit to that branch; the Release workflow checks out the current `main`, repeats the full release gate, builds the final version, creates or validates the immutable version tag on that exact `main` commit, and publishes the GitHub Release in the same successful job. A manually pushed external `v*` tag is also supported, but it must point to a commit contained in `main`.
+
+The pipeline supports optional Developer ID signing and Apple notarization. Without signing/notarization secrets it publishes an ad-hoc signed **prerelease** for development/testing. With all Apple credentials configured, the same workflow signs, notarizes, staples, Gatekeeper-verifies and publishes a normal release. See `docs/RELEASE.md`.
 
 ## Developing Remote AI with BAMA
 
