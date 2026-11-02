@@ -1,5 +1,5 @@
-import AppKit
 import Foundation
+import ImageIO
 import SwiftUI
 
 enum MascotAsset: String, CaseIterable, Identifiable, Equatable {
@@ -41,6 +41,14 @@ enum MascotAsset: String, CaseIterable, Identifiable, Equatable {
             subdirectory: "Mascot"
         )
     }
+
+    var cgImage: CGImage? {
+        guard let resourceURL,
+              let source = CGImageSourceCreateWithURL(resourceURL as CFURL, nil) else {
+            return nil
+        }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+    }
 }
 
 @MainActor
@@ -55,8 +63,8 @@ struct PixelCloudMascot: View {
 
     var body: some View {
         Group {
-            if let url = asset.resourceURL, let image = NSImage(contentsOf: url) {
-                Image(nsImage: image)
+            if let image = asset.cgImage {
+                Image(decorative: image, scale: 1, orientation: .up)
                     .resizable()
                     .interpolation(.none)
                     .scaledToFit()
