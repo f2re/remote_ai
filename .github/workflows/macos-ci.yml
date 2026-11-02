@@ -19,7 +19,7 @@ jobs:
     name: Проверка macOS
     runs-on: macos-latest
     env:
-      CI_APP_VERSION: "0.2.1"
+      CI_APP_VERSION: "0.2.2"
     steps:
       - name: Получение исходников
         uses: actions/checkout@v4
