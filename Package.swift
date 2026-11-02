@@ -10,7 +10,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "RemoteAI",
-            path: "Sources/RemoteAI"
+            path: "Sources/RemoteAI",
+            resources: [
+                .copy("Resources/Mascot")
+            ]
         ),
         .testTarget(
             name: "RemoteAITests",
