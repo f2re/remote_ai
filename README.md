@@ -14,6 +14,13 @@
   <img src="https://img.shields.io/badge/интерфейс-русский-green" alt="Русский интерфейс">
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/current/overview.png" width="1200" alt="Актуальный интерфейс Remote AI — состояния маскота и настройки">
+</p>
+
+<p align="center"><sub>Фактические кадры из зелёного CI для Remote AI 0.2.1 build 88, main <code>77d46a67</code>. Без синтетических экранов.</sub></p>
+<p align="center"><a href="docs/SCREENSHOTS.md">Все сведения о визуальном baseline и происхождении скриншотов →</a></p>
+
 Remote AI позволяет держать Claude Code запущенным на удалённом Linux/macOS-сервере, работать с обычной локальной папкой проекта на Mac и видеть состояние сессии через маленького плавающего маскота. Приложение не заменяет Claude Code и не перехватывает его авторизацию: инфраструктуру обеспечивают OpenSSH, Mutagen и tmux.
 
 ## Зачем это нужно
@@ -177,7 +184,7 @@ open ~/Applications/RemoteAI.app
 ./tools/verify-release.sh .build/app/RemoteAI.app /tmp/RemoteAI-shots 0.2.1
 ```
 
-Проверяются архитектуры Universal 2, codesign, metadata bundle, версия, значок, 16 PNG и целостность релизных архивов.
+Проверяются архитектуры Universal 2, codesign, metadata bundle, версия, значок, 16 PNG и целостность релизных архивов. Визуальный baseline и правила обновления изображений зафиксированы в [`docs/SCREENSHOTS.md`](docs/SCREENSHOTS.md).
 
 ## CI/CD и релизы
 
@@ -206,6 +213,7 @@ BAMA закреплён как submodule `vendor/bama` и остаётся ис�
 | [`docs/BRIEF.md`](docs/BRIEF.md) | продуктовый и UX-контракт |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | архитектура и границы безопасности |
 | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | единый русский словарь интерфейса |
+| [`docs/SCREENSHOTS.md`](docs/SCREENSHOTS.md) | актуальный визуальный baseline и происхождение скриншотов |
 | [`design/DESIGN-SYSTEM.md`](design/DESIGN-SYSTEM.md) | дизайн-система |
 | [`design/KIT.md`](design/KIT.md) | спецификация пиксельного облака |
 | [`docs/RELEASE.md`](docs/RELEASE.md) | CI/CD и публикация |
