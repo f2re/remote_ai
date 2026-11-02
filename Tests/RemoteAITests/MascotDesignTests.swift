@@ -1,4 +1,3 @@
-import AppKit
 import XCTest
 @testable import RemoteAI
 
@@ -18,38 +17,23 @@ final class MascotDesignTests: XCTestCase {
         for asset in MascotAsset.allCases {
             let url = try XCTUnwrap(asset.resourceURL, "Нет ресурса для \(asset.rawValue)")
             XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
-            let image = try XCTUnwrap(NSImage(contentsOf: url), "PNG \(asset.rawValue) не читается")
-            XCTAssertGreaterThan(image.size.width, 0)
-            XCTAssertGreaterThan(image.size.height, 0)
+            let image = try XCTUnwrap(asset.cgImage, "PNG \(asset.rawValue) не декодируется через ImageIO")
+            XCTAssertEqual(image.width, 256)
+            XCTAssertEqual(image.height, 256)
         }
     }
 
     func testFirstRunPrimaryActionOpensSettingsBeforeProjectSelection() {
-        XCTAssertEqual(
-            MascotState.offline.primaryAction(hasConfiguredHost: false, hasWorkspace: false),
-            .openSettings
-        )
+        XCTAssertEqual(MascotState.offline.primaryAction(hasConfiguredHost: false, hasWorkspace: false), .openSettings)
     }
 
     func testConfiguredHostWithoutWorkspaceChoosesProject() {
-        XCTAssertEqual(
-            MascotState.offline.primaryAction(hasConfiguredHost: true, hasWorkspace: false),
-            .chooseProject
-        )
+        XCTAssertEqual(MascotState.offline.primaryAction(hasConfiguredHost: true, hasWorkspace: false), .chooseProject)
     }
 
     func testOfflineConfiguredWorkspaceStartsAndActiveWorkspaceOpensWarp() {
-        XCTAssertEqual(
-            MascotState.offline.primaryAction(hasConfiguredHost: true, hasWorkspace: true),
-            .startOrReconnect
-        )
-        XCTAssertEqual(
-            MascotState.thinking.primaryAction(hasConfiguredHost: true, hasWorkspace: true),
-            .openWarp
-        )
-        XCTAssertEqual(
-            MascotState.error("failed").primaryAction(hasConfiguredHost: true, hasWorkspace: true),
-            .startOrReconnect
-        )
+        XCTAssertEqual(MascotState.offline.primaryAction(hasConfiguredHost: true, hasWorkspace: true), .startOrReconnect)
+        XCTAssertEqual(MascotState.thinking.primaryAction(hasConfiguredHost: true, hasWorkspace: true), .openWarp)
+        XCTAssertEqual(MascotState.error("failed").primaryAction(hasConfiguredHost: true, hasWorkspace: true), .startOrReconnect)
     }
 }
