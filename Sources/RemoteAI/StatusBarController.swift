@@ -36,16 +36,54 @@ final class StatusBarController {
     private func updateIcon() {
         guard let button = statusItem.button else { return }
 
-        let asset = MascotAsset(state: model.state)
-        if let original = asset.image {
-            let size = NSSize(width: 18, height: 18)
-            let icon = NSImage(size: size, flipped: false) { rect in
-                NSGraphicsContext.current?.imageInterpolation = .none
-                original.draw(in: rect)
-                return true
+        let state = model.state
+        let size = NSSize(width: 18, height: 18)
+        let icon = NSImage(size: size, flipped: false) { _ in
+            guard let symbol = NSImage(systemSymbolName: "cloud.fill", accessibilityDescription: nil) else {
+                return false
             }
-            button.image = icon
+
+            let config = NSImage.SymbolConfiguration(pointSize: 12.0, weight: .medium)
+            let configured = symbol.withSymbolConfiguration(config) ?? symbol
+
+            let cloudRect = NSRect(x: 0.5, y: 3.5, width: 17.0, height: 11.5)
+            NSColor.labelColor.setFill()
+            configured.draw(in: cloudRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+
+            let dotColor: NSColor? = {
+                switch state {
+                case .offline:
+                    return nil
+                case .connecting:
+                    return .systemBlue
+                case .syncing:
+                    return .systemCyan
+                case .thinking:
+                    return .systemIndigo
+                case .waiting:
+                    return .systemGreen
+                case .error:
+                    return .systemOrange
+                }
+            }()
+
+            if let dotColor {
+                let rimRect = NSRect(x: 11.0, y: 1.5, width: 6.5, height: 6.5)
+                NSGraphicsContext.current?.cgContext.setBlendMode(.clear)
+                NSBezierPath(ovalIn: rimRect).fill()
+                NSGraphicsContext.current?.cgContext.setBlendMode(.normal)
+
+                let dotRect = NSRect(x: 12.0, y: 2.5, width: 4.5, height: 4.5)
+                dotColor.setFill()
+                NSBezierPath(ovalIn: dotRect).fill()
+            }
+
+            return true
         }
+
+        icon.isTemplate = (state == .offline)
+        button.image = icon
+        button.imagePosition = .imageOnly
         button.toolTip = "Remote AI: \(model.state.accessibilityLabel)"
     }
 
