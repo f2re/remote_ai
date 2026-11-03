@@ -2,15 +2,15 @@ import SwiftUI
 
 enum MascotDesign {
     enum Metric {
-        static let panelWidth: CGFloat = 88
-        static let panelHeight: CGFloat = 80
-        static let hitSize: CGFloat = 76
-        static let artWidth: CGFloat = 64
-        static let artHeight: CGFloat = 44
-        static let hoverScale: CGFloat = 1.035
-        static let pressedScale: CGFloat = 0.965
-        static let haloSize: CGFloat = 70
-        static let haloOpacity: Double = 0.42
+        static let panelWidth: CGFloat = 96
+        static let panelHeight: CGFloat = 96
+        static let hitSize: CGFloat = 86
+        static let artWidth: CGFloat = 80
+        static let artHeight: CGFloat = 80
+        static let hoverScale: CGFloat = 1.028
+        static let pressedScale: CGFloat = 0.97
+        static let haloSize: CGFloat = 84
+        static let haloOpacity: Double = 0.36
     }
 
     enum Motion {

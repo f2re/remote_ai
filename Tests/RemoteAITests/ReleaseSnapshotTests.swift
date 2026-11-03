@@ -129,19 +129,12 @@ private struct MascotSnapshotSurface: View {
         ZStack {
             Color(nsColor: .windowBackgroundColor)
 
-            ZStack {
-                PixelCloudMascot(state: state, blink: false)
-                    .frame(
-                        width: MascotDesign.Metric.artWidth,
-                        height: MascotDesign.Metric.artHeight
-                    )
-                MascotStatusPixels(state: state, reduceMotion: true)
-            }
-            .frame(
-                width: MascotDesign.Metric.hitSize,
-                height: MascotDesign.Metric.hitSize
-            )
-            .padding(28)
+            PixelCloudMascot(state: state)
+                .frame(
+                    width: MascotDesign.Metric.artWidth,
+                    height: MascotDesign.Metric.artHeight
+                )
+                .padding(28)
         }
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
@@ -169,18 +162,11 @@ private struct MascotStateSheet: View {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(Array(states.enumerated()), id: \.offset) { _, item in
                     VStack(spacing: 10) {
-                        ZStack {
-                            PixelCloudMascot(state: item.1, blink: false)
-                                .frame(
-                                    width: MascotDesign.Metric.artWidth,
-                                    height: MascotDesign.Metric.artHeight
-                                )
-                            MascotStatusPixels(state: item.1, reduceMotion: true)
-                        }
-                        .frame(
-                            width: MascotDesign.Metric.hitSize,
-                            height: MascotDesign.Metric.hitSize
-                        )
+                        PixelCloudMascot(state: item.1)
+                            .frame(
+                                width: MascotDesign.Metric.artWidth,
+                                height: MascotDesign.Metric.artHeight
+                            )
 
                         Text(item.0)
                             .font(.system(size: 12, weight: .medium))

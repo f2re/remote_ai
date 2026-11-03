@@ -71,4 +71,13 @@ final class MascotDesignTests: XCTestCase {
         let controller = StatusBarController(model: model, mascotWindowController: nil)
         XCTAssertNotNil(controller)
     }
+
+    func testPolishedMascotAssetsAllStatesLoad() {
+        let states: [MascotState] = [.offline, .connecting, .syncing, .thinking, .waiting, .error("err")]
+        for s in states {
+            let img = PolishedMascotAssets.image(for: s)
+            XCTAssertGreaterThan(img.size.width, 0)
+            XCTAssertGreaterThan(img.size.height, 0)
+        }
+    }
 }
