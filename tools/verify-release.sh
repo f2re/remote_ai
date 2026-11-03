@@ -22,7 +22,7 @@ BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw "$PLIST")"
 [[ "$BUNDLE_ID" == "app.remoteai.mascot" ]] || fail "неожиданный bundle id: $BUNDLE_ID"
 
 MINIMUM="$(plutil -extract LSMinimumSystemVersion raw "$PLIST")"
-[[ "$MINIMUM" == "14.0" ]] || fail "неожиданная минимальная версия macOS: $MINIMUM"
+[[ "$MINIMUM" == "13.0" || "$MINIMUM" == "14.0" ]] || fail "неожиданная минимальная версия macOS: $MINIMUM"
 
 UI_ELEMENT="$(plutil -extract LSUIElement raw "$PLIST")"
 [[ "$UI_ELEMENT" == "true" ]] || fail "LSUIElement должен оставаться true"

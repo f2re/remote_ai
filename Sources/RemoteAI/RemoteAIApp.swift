@@ -14,20 +14,22 @@ struct RemoteAIApp: App {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     let model = AppModel()
     private var mascotWindow: MascotWindowController?
+    private var statusBarController: StatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         UNUserNotificationCenter.current().delegate = self
         mascotWindow = MascotWindowController(model: model)
         mascotWindow?.show()
+        statusBarController = StatusBarController(model: model, mascotWindowController: mascotWindow)
         model.requestNotificationPermission()
         model.restoreExistingSession()
     }
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
@@ -37,12 +39,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @preconcurrency UNUser
         guard response.notification.request.content.categoryIdentifier == RemoteAINotification.waitingCategory else { return }
 
         let notificationWorkspaceID = response.notification.request.content.userInfo[RemoteAINotification.workspaceIDKey] as? String
-        if let notificationWorkspaceID,
-           let currentWorkspace = model.workspace,
-           notificationWorkspaceID != currentWorkspace.id {
-            return
-        }
+        Task { @MainActor in
+            if let notificationWorkspaceID,
+               let currentWorkspace = self.model.workspace,
+               notificationWorkspaceID != currentWorkspace.id {
+                return
+            }
 
-        model.openWarp()
+            self.model.openWarp()
+        }
     }
 }

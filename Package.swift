@@ -1,21 +1,30 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 5.9
 import PackageDescription
 
 let package = Package(
     name: "RemoteAI",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v13)],
     products: [
         .executable(name: "RemoteAI", targets: ["RemoteAI"])
     ],
     targets: [
         .executableTarget(
             name: "RemoteAI",
-            path: "Sources/RemoteAI"
+            path: "Sources/RemoteAI",
+            resources: [
+                .copy("Resources/Mascot")
+            ],
+            swiftSettings: [
+                .enableUpcomingFeature("BareSlashRegexLiterals")
+            ]
         ),
         .testTarget(
             name: "RemoteAITests",
             dependencies: ["RemoteAI"],
-            path: "Tests/RemoteAITests"
+            path: "Tests/RemoteAITests",
+            swiftSettings: [
+                .enableUpcomingFeature("BareSlashRegexLiterals")
+            ]
         )
     ]
 )

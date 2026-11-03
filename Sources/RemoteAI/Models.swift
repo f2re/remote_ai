@@ -95,19 +95,103 @@ struct RemoteAIConfig: Codable, Equatable, Sendable {
     }
 }
 
+struct WorkspaceFolder: Codable, Identifiable, Equatable, Sendable {
+    let id: String
+    var name: String
+    var localPath: String
+    var remoteSubpath: String
+
+    init(localPath: String) {
+        let standardized = URL(fileURLWithPath: localPath).standardizedFileURL.path
+        let folderName = URL(fileURLWithPath: standardized).lastPathComponent
+        let shortHash = String(StableHash.fnv1a64(standardized).prefix(6))
+        self.id = "\(Identifier.sanitize(folderName, fallback: "dir"))-\(shortHash)"
+        self.name = folderName.isEmpty ? "folder" : folderName
+        self.localPath = standardized
+        self.remoteSubpath = Identifier.sanitize(folderName, fallback: "dir")
+    }
+
+    init(id: String, name: String, localPath: String, remoteSubpath: String) {
+        self.id = id
+        self.name = name
+        self.localPath = localPath
+        self.remoteSubpath = remoteSubpath
+    }
+}
+
 struct Workspace: Codable, Identifiable, Equatable, Sendable {
     let id: String
-    let name: String
-    let localPath: String
+    var name: String
+    var folders: [WorkspaceFolder]
     let remotePath: String
     let sessionName: String
 
-    static func make(localPath: String, remoteRoot: String) -> Workspace {
-        let standardized = URL(fileURLWithPath: localPath).standardizedFileURL.path
-        let basename = Identifier.sanitize(URL(fileURLWithPath: standardized).lastPathComponent, fallback: "project")
-        let hash = StableHash.fnv1a64(standardized)
-        let shortHash = String(hash.prefix(8))
-        let base = String(basename.prefix(32))
+    var localPath: String {
+        folders.first?.localPath ?? ""
+    }
+
+    var localPaths: [String] {
+        folders.map(\.localPath)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case folders
+        case localPath
+        case remotePath
+        case sessionName
+    }
+
+    init(id: String, name: String, folders: [WorkspaceFolder], remotePath: String, sessionName: String) {
+        self.id = id
+        self.name = name
+        self.folders = folders
+        self.remotePath = remotePath
+        self.sessionName = sessionName
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.remotePath = try container.decode(String.self, forKey: .remotePath)
+        self.sessionName = try container.decode(String.self, forKey: .sessionName)
+
+        if let decodedFolders = try? container.decode([WorkspaceFolder].self, forKey: .folders), !decodedFolders.isEmpty {
+            self.folders = decodedFolders
+        } else if let singlePath = try? container.decode(String.self, forKey: .localPath), !singlePath.isEmpty {
+            self.folders = [WorkspaceFolder(localPath: singlePath)]
+        } else {
+            self.folders = []
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(folders, forKey: .folders)
+        try container.encode(localPath, forKey: .localPath)
+        try container.encode(remotePath, forKey: .remotePath)
+        try container.encode(sessionName, forKey: .sessionName)
+    }
+
+    func remotePath(for folder: WorkspaceFolder) -> String {
+        if folders.count <= 1 {
+            return remotePath
+        }
+        return "\(remotePath)/\(folder.remoteSubpath)"
+    }
+
+    static func make(name: String? = nil, localPaths: [String], remoteRoot: String) -> Workspace {
+        let folders = localPaths.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map { WorkspaceFolder(localPath: $0) }
+        let primaryPath = folders.first?.localPath ?? ""
+        let primaryName = folders.first?.name ?? "project"
+        let chosenName = (name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false) ? name! : primaryName
+
+        let shortHash = String(StableHash.fnv1a64(primaryPath.isEmpty ? chosenName : primaryPath).prefix(8))
+        let base = String(Identifier.sanitize(chosenName, fallback: "project").prefix(32))
         let id = "\(base)-\(shortHash)"
 
         var root = remoteRoot.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -118,12 +202,21 @@ struct Workspace: Codable, Identifiable, Equatable, Sendable {
 
         return Workspace(
             id: id,
-            name: URL(fileURLWithPath: standardized).lastPathComponent,
-            localPath: standardized,
+            name: chosenName,
+            folders: folders,
             remotePath: remotePath,
             sessionName: "rai-\(id)"
         )
     }
+
+    static func make(localPath: String, remoteRoot: String) -> Workspace {
+        make(name: nil, localPaths: [localPath], remoteRoot: remoteRoot)
+    }
+}
+
+struct WorkspaceCollection: Codable, Equatable, Sendable {
+    var activeWorkspaceID: String?
+    var workspaces: [Workspace]
 }
 
 enum SyncHealth: Equatable, Sendable {

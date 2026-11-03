@@ -6,7 +6,8 @@ import Foundation
 final class AppModel: ObservableObject {
     @Published var state: MascotState = .offline
     @Published var config: RemoteAIConfig
-    @Published private(set) var workspace: Workspace?
+    @Published var workspaces: [Workspace] = []
+    @Published var activeWorkspaceID: String?
     @Published private(set) var detail: String?
     @Published private(set) var setupChecks: [SetupCheck] = []
     @Published private(set) var isTestingSetup = false
@@ -24,7 +25,28 @@ final class AppModel: ObservableObject {
 
     init() {
         config = (try? store.loadConfig()) ?? RemoteAIConfig()
-        workspace = try? store.loadWorkspace()
+        let collection = (try? store.loadWorkspaces()) ?? WorkspaceCollection(activeWorkspaceID: nil, workspaces: [])
+        workspaces = collection.workspaces
+        activeWorkspaceID = collection.activeWorkspaceID ?? workspaces.first?.id
+    }
+
+    var workspace: Workspace? {
+        get {
+            workspaces.first { $0.id == activeWorkspaceID } ?? workspaces.first
+        }
+        set {
+            if let newValue {
+                if let idx = workspaces.firstIndex(where: { $0.id == newValue.id }) {
+                    workspaces[idx] = newValue
+                } else {
+                    workspaces.append(newValue)
+                }
+                activeWorkspaceID = newValue.id
+            } else {
+                activeWorkspaceID = nil
+            }
+            saveWorkspaces()
+        }
     }
 
     var primaryActionIntent: MascotPrimaryAction {
@@ -38,18 +60,105 @@ final class AppModel: ObservableObject {
         Task { await notifications.requestAuthorization() }
     }
 
+    func saveWorkspaces() {
+        let collection = WorkspaceCollection(activeWorkspaceID: activeWorkspaceID, workspaces: workspaces)
+        try? store.saveWorkspaces(collection)
+    }
+
+    func selectWorkspace(id: String) {
+        guard activeWorkspaceID != id else { return }
+        if state != .offline {
+            stop()
+        }
+        activeWorkspaceID = id
+        saveWorkspaces()
+        setupChecks = []
+        if let current = workspace {
+            detail = "Выбрана сессия: \(current.name)"
+        }
+    }
+
+    func createWorkspace(name: String? = nil, initialPath: String? = nil) {
+        let paths = initialPath.map { [$0] } ?? []
+        let newWorkspace = Workspace.make(name: name, localPaths: paths, remoteRoot: config.remoteRoot)
+        workspaces.append(newWorkspace)
+        activeWorkspaceID = newWorkspace.id
+        saveWorkspaces()
+        setupChecks = []
+        detail = "Создана сессия: \(newWorkspace.name)"
+    }
+
+    func deleteWorkspace(id: String) {
+        if activeWorkspaceID == id, state != .offline {
+            stop()
+        }
+        workspaces.removeAll { $0.id == id }
+        if activeWorkspaceID == id {
+            activeWorkspaceID = workspaces.first?.id
+        }
+        saveWorkspaces()
+        setupChecks = []
+        detail = "Сессия удалена"
+    }
+
+    func renameWorkspace(id: String, newName: String) {
+        guard let idx = workspaces.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        workspaces[idx].name = trimmed
+        saveWorkspaces()
+    }
+
+    func addFolder(to workspaceID: String, localPath: String) {
+        guard let idx = workspaces.firstIndex(where: { $0.id == workspaceID }) else { return }
+        let standardized = URL(fileURLWithPath: localPath).standardizedFileURL.path
+        guard !workspaces[idx].folders.contains(where: { $0.localPath == standardized }) else { return }
+        workspaces[idx].folders.append(WorkspaceFolder(localPath: standardized))
+        saveWorkspaces()
+        setupChecks = []
+        detail = "Добавлена папка в сессию: \(URL(fileURLWithPath: standardized).lastPathComponent)"
+    }
+
+    func removeFolder(from workspaceID: String, folderID: String) {
+        guard let idx = workspaces.firstIndex(where: { $0.id == workspaceID }) else { return }
+        workspaces[idx].folders.removeAll { $0.id == folderID }
+        saveWorkspaces()
+        setupChecks = []
+        detail = "Папка удалена из сессии"
+    }
+
+    func addFolderToActiveSession() {
+        guard let active = workspace else {
+            chooseProject()
+            return
+        }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Добавить в проект"
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                addFolder(to: active.id, localPath: url.path)
+            }
+        }
+    }
+
     func chooseProject() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Выбрать проект"
-        if panel.runModal() == .OK, let url = panel.url {
-            let newWorkspace = Workspace.make(localPath: url.path, remoteRoot: config.remoteRoot)
-            workspace = newWorkspace
-            try? store.saveWorkspace(newWorkspace)
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Выбрать папки проекта"
+        if panel.runModal() == .OK, !panel.urls.isEmpty {
+            let paths = panel.urls.map(\.path)
+            let firstName = panel.urls.first?.lastPathComponent ?? "project"
+            let newWorkspace = Workspace.make(name: firstName, localPaths: paths, remoteRoot: config.remoteRoot)
+            workspaces.append(newWorkspace)
+            activeWorkspaceID = newWorkspace.id
+            saveWorkspaces()
             setupChecks = []
-            detail = "Выбран проект: \(newWorkspace.name)"
+            detail = "Создана сессия: \(newWorkspace.name) (\(paths.count) папок)"
         }
     }
 
@@ -57,11 +166,7 @@ final class AppModel: ObservableObject {
         do {
             try config.validate()
             try store.saveConfig(config)
-            if let existing = workspace {
-                let refreshed = Workspace.make(localPath: existing.localPath, remoteRoot: config.remoteRoot)
-                workspace = refreshed
-                try store.saveWorkspace(refreshed)
-            }
+            saveWorkspaces()
             setupChecks = []
             detail = "Настройки сохранены"
         } catch {
@@ -184,6 +289,7 @@ final class AppModel: ObservableObject {
         do {
             try config.validate()
             try store.saveConfig(config)
+            saveWorkspaces()
 
             transition(to: .connecting)
             detail = "Проверяем локальные и удалённые зависимости"
@@ -238,16 +344,16 @@ final class AppModel: ObservableObject {
             detail = message
             transition(to: .syncing)
             return true
-        case .missing:
-            detail = "Зеркало проекта не настроено для этого маршрута сервера"
+        case .paused:
+            detail = "Синхронизация Mutagen приостановлена"
             transition(to: .offline)
             return false
         case .unavailable(let message):
             detail = message
-            transition(to: .offline)
+            transition(to: .error(message))
             return false
-        case .paused:
-            detail = "Синхронизация приостановлена"
+        case .missing:
+            detail = "Сессия Mutagen не найдена"
             transition(to: .offline)
             return false
         case .ready:
@@ -257,10 +363,11 @@ final class AppModel: ObservableObject {
         do {
             let snapshot = try await runtime.poll(workspace: workspace, config: config)
             guard snapshot.sessionExists else {
-                detail = "Сессия Claude Code не запущена"
+                detail = "Удалённая сессия tmux не найдена"
                 transition(to: .offline)
                 return false
             }
+
             let resolvedState = snapshot.reportedState ?? PaneStatusParser.state(from: snapshot.pane)
             detail = statusDetail(for: resolvedState)
             transition(to: resolvedState)

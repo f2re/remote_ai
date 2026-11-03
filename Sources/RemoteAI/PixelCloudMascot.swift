@@ -1,205 +1,128 @@
+import Foundation
+import ImageIO
 import SwiftUI
 
-enum PixelCloudArt {
-    static let rows = [
-        "......####......",
-        "....########....",
-        "..############..",
-        ".##############.",
-        "################",
-        "################",
-        ".##############.",
-        "..############..",
-        "...##########...",
-        "....########...."
-    ]
+enum MascotAsset: String, CaseIterable, Identifiable, Equatable {
+    case offline
+    case connecting
+    case syncing
+    case thinking
+    case waiting
+    case error
 
-    static let grid = rows.map(Array.init)
-    static let columns = 16
-    static let rowCount = rows.count
+    var id: String { rawValue }
+    var fileName: String { "mascot-\(rawValue)" }
 
-    static var filledPixelCount: Int {
-        grid.reduce(0) { total, row in total + row.filter { $0 == "#" }.count }
+    init(state: MascotState) {
+        switch state {
+        case .offline: self = .offline
+        case .connecting: self = .connecting
+        case .syncing: self = .syncing
+        case .thinking: self = .thinking
+        case .waiting: self = .waiting
+        case .error: self = .error
+        }
     }
 
-    static func isFilled(x: Int, y: Int) -> Bool {
-        guard y >= 0, y < grid.count, x >= 0, x < columns else { return false }
-        return grid[y][x] == "#"
+    var resourceURL: URL? {
+        if let resourceRoot = Bundle.main.resourceURL {
+            let packaged = resourceRoot
+                .appendingPathComponent("RemoteAI_RemoteAI.bundle", isDirectory: true)
+                .appendingPathComponent("Mascot", isDirectory: true)
+                .appendingPathComponent("\(fileName).png")
+            if FileManager.default.fileExists(atPath: packaged.path) {
+                return packaged
+            }
+        }
+
+        return Bundle.module.url(
+            forResource: fileName,
+            withExtension: "png",
+            subdirectory: "Mascot"
+        )
+    }
+
+    var cgImage: CGImage? {
+        guard let resourceURL,
+              let source = CGImageSourceCreateWithURL(resourceURL as CFURL, nil) else {
+            return nil
+        }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }
 }
 
+@MainActor
 struct PixelCloudMascot: View {
     let state: MascotState
-    let blink: Bool
+    var animated = true
 
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var phase = false
+
+    private var asset: MascotAsset { MascotAsset(state: state) }
 
     var body: some View {
-        Canvas { context, size in
-            let pixel = floor(min(
-                size.width / CGFloat(PixelCloudArt.columns),
-                size.height / CGFloat(PixelCloudArt.rowCount)
-            ))
-            let artWidth = pixel * CGFloat(PixelCloudArt.columns)
-            let artHeight = pixel * CGFloat(PixelCloudArt.rowCount)
-            let origin = CGPoint(
-                x: floor((size.width - artWidth) / 2),
-                y: floor((size.height - artHeight) / 2)
-            )
-
-            for y in 0..<PixelCloudArt.rowCount {
-                for x in 0..<PixelCloudArt.columns where PixelCloudArt.isFilled(x: x, y: y) {
-                    let edge = !PixelCloudArt.isFilled(x: x - 1, y: y)
-                        || !PixelCloudArt.isFilled(x: x + 1, y: y)
-                        || !PixelCloudArt.isFilled(x: x, y: y - 1)
-                        || !PixelCloudArt.isFilled(x: x, y: y + 1)
-                    let color = edge
-                        ? MascotDesign.Palette.cloudShade(for: colorScheme)
-                        : MascotDesign.Palette.cloudFill(for: colorScheme)
-                    Self.fillPixel(
-                        context: &context,
-                        x: x,
-                        y: y,
-                        width: 1,
-                        height: 1,
-                        origin: origin,
-                        pixel: pixel,
-                        color: color
-                    )
-                }
+        Group {
+            if let image = asset.cgImage {
+                Image(decorative: image, scale: 1, orientation: .up)
+                    .resizable()
+                    .interpolation(.none)
+                    .scaledToFit()
+            } else {
+                Image(systemName: "icloud.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(12)
+                    .foregroundStyle(.secondary)
             }
-
-            Self.drawFace(
-                context: &context,
-                state: state,
-                blink: blink,
-                origin: origin,
-                pixel: pixel,
-                ink: MascotDesign.Palette.faceInk(for: colorScheme)
-            )
+        }
+        .scaleEffect(motionScale)
+        .offset(y: motionOffset)
+        .animation(motionAnimation, value: phase)
+        .onAppear { updateMotion() }
+        .onChange(of: reduceMotion) { _ in updateMotion() }
+        .onChange(of: asset) { _ in
+            phase = false
+            updateMotion()
         }
         .accessibilityHidden(true)
     }
 
-    private static func drawFace(
-        context: inout GraphicsContext,
-        state: MascotState,
-        blink: Bool,
-        origin: CGPoint,
-        pixel: CGFloat,
-        ink: Color
-    ) {
-        let sleeping: Bool
-        if case .offline = state { sleeping = true } else { sleeping = false }
-
-        if sleeping || blink {
-            fillPixel(context: &context, x: 5, y: 5, width: 2, height: 1, origin: origin, pixel: pixel, color: ink)
-            fillPixel(context: &context, x: 10, y: 5, width: 2, height: 1, origin: origin, pixel: pixel, color: ink)
-        } else {
-            fillPixel(context: &context, x: 5, y: 4, width: 1, height: 2, origin: origin, pixel: pixel, color: ink)
-            fillPixel(context: &context, x: 10, y: 4, width: 1, height: 2, origin: origin, pixel: pixel, color: ink)
-        }
-
-        switch state {
-        case .waiting:
-            fillPixel(context: &context, x: 6, y: 6, width: 1, height: 1, origin: origin, pixel: pixel, color: ink)
-            fillPixel(context: &context, x: 7, y: 7, width: 2, height: 1, origin: origin, pixel: pixel, color: ink)
-            fillPixel(context: &context, x: 9, y: 6, width: 1, height: 1, origin: origin, pixel: pixel, color: ink)
-        case .error:
-            fillPixel(context: &context, x: 5, y: 3, width: 1, height: 1, origin: origin, pixel: pixel, color: ink)
-            fillPixel(context: &context, x: 10, y: 3, width: 1, height: 1, origin: origin, pixel: pixel, color: ink)
-            fillPixel(context: &context, x: 6, y: 7, width: 1, height: 1, origin: origin, pixel: pixel, color: ink)
-            fillPixel(context: &context, x: 7, y: 6, width: 2, height: 1, origin: origin, pixel: pixel, color: ink)
-            fillPixel(context: &context, x: 9, y: 7, width: 1, height: 1, origin: origin, pixel: pixel, color: ink)
-        default:
-            break
+    private var motionScale: CGFloat {
+        guard animated, !reduceMotion, phase else { return 1 }
+        switch asset {
+        case .offline: return 1
+        case .connecting: return 1.018
+        case .syncing: return 1.012
+        case .thinking: return 1.02
+        case .waiting: return 1.012
+        case .error: return 1.01
         }
     }
 
-    private static func fillPixel(
-        context: inout GraphicsContext,
-        x: Int,
-        y: Int,
-        width: Int,
-        height: Int,
-        origin: CGPoint,
-        pixel: CGFloat,
-        color: Color
-    ) {
-        let rect = CGRect(
-            x: origin.x + CGFloat(x) * pixel,
-            y: origin.y + CGFloat(y) * pixel,
-            width: CGFloat(width) * pixel,
-            height: CGFloat(height) * pixel
-        )
-        context.fill(Path(rect), with: .color(color))
-    }
-}
-
-struct MascotStatusPixels: View {
-    let state: MascotState
-    let reduceMotion: Bool
-
-    @State private var phase = false
-
-    private var color: Color { MascotDesign.Palette.status(for: state) }
-
-    var body: some View {
-        ZStack {
-            switch state {
-            case .offline:
-                EmptyView()
-            case .connecting:
-                Rectangle()
-                    .fill(color)
-                    .frame(width: 4, height: 4)
-                    .offset(x: phase ? 29 : 21, y: -22)
-                    .opacity(phase ? 1 : 0.45)
-            case .syncing:
-                ZStack {
-                    Rectangle().fill(color).frame(width: 4, height: 4).offset(y: -30)
-                    Rectangle().fill(color).frame(width: 3, height: 3).offset(y: 30)
-                }
-                .rotationEffect(.degrees(phase ? 360 : 0))
-            case .thinking:
-                ZStack {
-                    Rectangle().fill(color).frame(width: 3, height: 3).offset(y: -6)
-                    Rectangle().fill(color).frame(width: 3, height: 3).offset(y: 6)
-                    Rectangle().fill(color).frame(width: 3, height: 3).offset(x: -6)
-                    Rectangle().fill(color).frame(width: 3, height: 3).offset(x: 6)
-                }
-                .offset(x: 25, y: -22)
-                .scaleEffect(phase ? 1 : 0.62)
-                .opacity(phase ? 1 : 0.48)
-            case .waiting:
-                ZStack {
-                    Rectangle().fill(color).frame(width: 5, height: 5)
-                    Rectangle().fill(color).frame(width: 2, height: 2).offset(x: 6, y: -6)
-                }
-                .offset(x: 25, y: -21)
-            case .error:
-                VStack(spacing: 2) {
-                    Rectangle().fill(color).frame(width: 4, height: 8)
-                    Rectangle().fill(color).frame(width: 4, height: 4)
-                }
-                .offset(x: 26, y: -20)
-            }
+    private var motionOffset: CGFloat {
+        guard animated, !reduceMotion, phase else { return 0 }
+        switch asset {
+        case .offline: return 0
+        case .connecting, .thinking: return -1.5
+        case .syncing, .waiting: return -1
+        case .error: return 0
         }
-        .frame(width: MascotDesign.Metric.hitSize, height: MascotDesign.Metric.hitSize)
-        .onAppear { startAnimation() }
     }
 
-    private func startAnimation() {
-        guard !reduceMotion else { return }
-        DispatchQueue.main.async {
-            switch state {
-            case .syncing:
-                withAnimation(MascotDesign.Motion.orbit) { phase = true }
-            case .connecting, .thinking:
-                withAnimation(MascotDesign.Motion.sparkle) { phase = true }
-            default:
-                break
-            }
+    private var motionAnimation: Animation? {
+        guard animated, !reduceMotion else { return nil }
+        switch asset {
+        case .offline: return nil
+        case .connecting, .thinking: return MascotDesign.Motion.livelyIdle
+        case .syncing, .waiting: return MascotDesign.Motion.idle
+        case .error: return MascotDesign.Motion.errorPulse
         }
+    }
+
+    private func updateMotion() {
+        phase = false
+        guard animated, !reduceMotion, asset != .offline else { return }
+        DispatchQueue.main.async { phase = true }
     }
 }

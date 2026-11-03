@@ -104,4 +104,56 @@ final class CoreTests: XCTestCase {
     func testTOMLStringEscapesQuotesAndBackslashes() {
         XCTAssertEqual(TOML.string("a\\b\"c"), "\"a\\\\b\\\"c\"")
     }
+
+    func testMultiFolderWorkspaceInitializationAndDecoding() throws {
+        let ws = Workspace.make(
+            name: "FullStack",
+            localPaths: ["/Users/test/Projects/frontend", "/Users/test/Projects/backend"],
+            remoteRoot: ".remote-ai/workspaces"
+        )
+        XCTAssertEqual(ws.name, "FullStack")
+        XCTAssertEqual(ws.folders.count, 2)
+        XCTAssertEqual(ws.localPath, "/Users/test/Projects/frontend")
+        XCTAssertEqual(ws.localPaths, ["/Users/test/Projects/frontend", "/Users/test/Projects/backend"])
+        XCTAssertTrue(ws.remotePath(for: ws.folders[1]).hasSuffix("/backend"))
+
+        let encoded = try JSONEncoder().encode(ws)
+        let decoded = try JSONDecoder().decode(Workspace.self, from: encoded)
+        XCTAssertEqual(decoded.id, ws.id)
+        XCTAssertEqual(decoded.folders.count, 2)
+        XCTAssertEqual(decoded.folders[1].name, "backend")
+    }
+
+    func testLegacyWorkspaceSinglePathDecodingBackwardCompatibility() throws {
+        let legacyJSON = """
+        {
+          "id": "myproject-12345678",
+          "name": "myproject",
+          "localPath": "/Users/test/LegacyProject",
+          "remotePath": ".remote-ai/workspaces/myproject-12345678",
+          "sessionName": "rai-myproject-12345678"
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(Workspace.self, from: legacyJSON)
+        XCTAssertEqual(decoded.name, "myproject")
+        XCTAssertEqual(decoded.folders.count, 1)
+        XCTAssertEqual(decoded.localPath, "/Users/test/LegacyProject")
+    }
+
+    func testMutagenSessionNamesForMultiFolderWorkspace() {
+        var config = RemoteAIConfig()
+        config.host = "studio"
+        config.user = "meteo"
+        let ws = Workspace.make(
+            name: "MonoRepo",
+            localPaths: ["/Users/test/repo/app", "/Users/test/repo/api"],
+            remoteRoot: ".remote-ai/workspaces"
+        )
+        let names = MutagenController().sessionNames(workspace: ws, config: config)
+        XCTAssertEqual(names.count, 2)
+        XCTAssertNotEqual(names[0], names[1])
+        XCTAssertTrue(names[0].hasPrefix("rai-"))
+        XCTAssertTrue(names[1].hasPrefix("rai-"))
+    }
 }

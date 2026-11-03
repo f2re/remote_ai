@@ -97,12 +97,29 @@ struct SetupDiagnostics: Sendable {
         }
 
         if let workspace {
-            var isDirectory: ObjCBool = false
-            let exists = FileManager.default.fileExists(atPath: workspace.localPath, isDirectory: &isDirectory)
-            if exists, isDirectory.boolValue, FileManager.default.isReadableFile(atPath: workspace.localPath) {
-                checks.append(.init(kind: .project, status: .passed, detail: workspace.localPath))
+            if workspace.folders.isEmpty {
+                checks.append(.init(kind: .project, status: .failed, detail: "Добавьте хотя бы одну локальную папку проекта в сессию."))
             } else {
-                checks.append(.init(kind: .project, status: .failed, detail: "Выберите доступную для чтения локальную папку проекта."))
+                var allValid = true
+                var invalidDetail = ""
+                for folder in workspace.folders {
+                    var isDirectory: ObjCBool = false
+                    let exists = FileManager.default.fileExists(atPath: folder.localPath, isDirectory: &isDirectory)
+                    if !exists || !isDirectory.boolValue || !FileManager.default.isReadableFile(atPath: folder.localPath) {
+                        allValid = false
+                        invalidDetail = "Папка недоступна для чтения: \(folder.localPath)"
+                        break
+                    }
+                }
+
+                if allValid {
+                    let detail = workspace.folders.count == 1
+                        ? workspace.localPath
+                        : "\(workspace.name) (\(workspace.folders.count) папок: \(workspace.folders.map(\.name).joined(separator: ", ")))"
+                    checks.append(.init(kind: .project, status: .passed, detail: detail))
+                } else {
+                    checks.append(.init(kind: .project, status: .failed, detail: invalidDetail))
+                }
             }
         } else {
             checks.append(.init(kind: .project, status: .failed, detail: "Локальный проект не выбран."))

@@ -11,6 +11,7 @@ struct ConfigStore: Sendable {
 
     var configURL: URL { directoryURL.appendingPathComponent("config.json") }
     var workspaceURL: URL { directoryURL.appendingPathComponent("workspace.json") }
+    var workspacesURL: URL { directoryURL.appendingPathComponent("workspaces.json") }
 
     func loadConfig() throws -> RemoteAIConfig {
         guard fileManager.fileExists(atPath: configURL.path) else { return RemoteAIConfig() }
@@ -24,7 +25,42 @@ struct ConfigStore: Sendable {
         try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: configURL.path)
     }
 
+    func loadWorkspaces() throws -> WorkspaceCollection {
+        if fileManager.fileExists(atPath: workspacesURL.path) {
+            return try JSONDecoder().decode(WorkspaceCollection.self, from: Data(contentsOf: workspacesURL))
+        }
+
+        // Migrate from single workspace.json if present
+        if fileManager.fileExists(atPath: workspaceURL.path),
+           let legacy = try? JSONDecoder().decode(Workspace.self, from: Data(contentsOf: workspaceURL)) {
+            let collection = WorkspaceCollection(activeWorkspaceID: legacy.id, workspaces: [legacy])
+            try? saveWorkspaces(collection)
+            return collection
+        }
+
+        return WorkspaceCollection(activeWorkspaceID: nil, workspaces: [])
+    }
+
+    func saveWorkspaces(_ collection: WorkspaceCollection) throws {
+        try ensureDirectory()
+        let data = try JSONEncoder.pretty.encode(collection)
+        try data.write(to: workspacesURL, options: .atomic)
+
+        // Also keep workspace.json updated with active workspace for backward compatibility
+        if let active = collection.workspaces.first(where: { $0.id == collection.activeWorkspaceID }) ?? collection.workspaces.first {
+            try? saveWorkspace(active)
+        }
+    }
+
     func loadWorkspace() throws -> Workspace? {
+        if let collection = try? loadWorkspaces() {
+            if let active = collection.workspaces.first(where: { $0.id == collection.activeWorkspaceID }) {
+                return active
+            }
+            if let first = collection.workspaces.first {
+                return first
+            }
+        }
         guard fileManager.fileExists(atPath: workspaceURL.path) else { return nil }
         return try JSONDecoder().decode(Workspace.self, from: Data(contentsOf: workspaceURL))
     }

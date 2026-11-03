@@ -15,10 +15,17 @@ struct RemoteRuntimeController: Sendable {
         let hooksPath = "\(plugin)/hooks/hooks.json"
         let scriptPath = "\(plugin)/scripts/state.sh"
 
+        var dirsToMake = [path, "\(plugin)/.claude-plugin", "\(plugin)/hooks", "\(plugin)/scripts", stateRoot]
+        if workspace.folders.count > 1 {
+            for folder in workspace.folders {
+                dirsToMake.append(RemotePath.shellExpression(workspace.remotePath(for: folder)))
+            }
+        }
+
         let command = [
             "command -v tmux >/dev/null 2>&1 || { echo 'tmux не установлен'; exit 41; }",
             "command -v claude >/dev/null 2>&1 || { echo 'claude не установлен'; exit 42; }",
-            "mkdir -p -- \(path) \(plugin)/.claude-plugin \(plugin)/hooks \(plugin)/scripts \(stateRoot)",
+            "mkdir -p -- \(dirsToMake.joined(separator: " "))",
             "printf %s \(Shell.quote(Self.monitorPluginManifest)) > \(manifestPath)",
             "printf %s \(Shell.quote(Self.monitorHooks)) > \(hooksPath)",
             "printf %s \(Shell.quote(Self.monitorScript)) > \(scriptPath)",
@@ -34,7 +41,17 @@ struct RemoteRuntimeController: Sendable {
         let plugin = RemotePath.shellExpression(Self.pluginRoot)
         let stateFile = RemotePath.shellExpression(stateFilePath(workspace: workspace))
 
-        let launch = "if claude --plugin-dir \(plugin) --version >/dev/null 2>&1; then export REMOTE_AI_STATE_FILE=\(stateFile); exec claude --plugin-dir \(plugin); else exec claude; fi"
+        let addDirArgs: String
+        if workspace.folders.count > 1 {
+            let dirs = workspace.folders.map { folder in
+                Shell.quote(RemotePath.shellExpression(workspace.remotePath(for: folder)))
+            }.joined(separator: " ")
+            addDirArgs = "--add-dir \(dirs) "
+        } else {
+            addDirArgs = ""
+        }
+
+        let launch = "if claude --plugin-dir \(plugin) --version >/dev/null 2>&1; then export REMOTE_AI_STATE_FILE=\(stateFile); exec claude \(addDirArgs)--plugin-dir \(plugin); else exec claude \(addDirArgs); fi"
         let command = "tmux has-session -t \(session) 2>/dev/null || tmux new-session -d -s \(session) -c \(path) \(Shell.quote(launch))"
         _ = try await ssh.run(remoteCommand: command, config: config)
     }
