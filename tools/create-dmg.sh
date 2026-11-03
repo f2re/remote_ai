@@ -38,42 +38,56 @@ if command -v osacompile >/dev/null 2>&1; then
   osacompile -o "$WORK_DIR/dmg-finder-layout.scpt" "$SCRIPT_DIR/dmg-finder-layout.applescript"
 fi
 
-# Finder записывает настройки положения и размеров значков в .DS_Store только на
-# смонтированный записываемый том. После настройки DMG конвертируется в сжатый UDZO.
-hdiutil create -quiet \
-  -volname "$VOLUME_NAME" \
-  -srcfolder "$STAGE_DIR" \
-  -ov -format UDRW \
-  "$RW_DMG"
+if [[ -n "${DMGBUILD_BIN:-}" ]]; then
+  [[ -x "$DMGBUILD_BIN" ]] || {
+    echo "Указан недоступный dmgbuild: $DMGBUILD_BIN" >&2
+    exit 1
+  }
+  ABS_APP_PATH="$(cd "$(dirname "$APP_PATH")" && pwd)/$APP_NAME"
+  rm -f "$OUTPUT_DMG"
+  "$DMGBUILD_BIN" -s "$SCRIPT_DIR/dmg-settings.py" \
+    -D "app=$ABS_APP_PATH" \
+    "$VOLUME_NAME" "$OUTPUT_DMG"
+  echo "Headless Finder layout записан dmgbuild без Apple Events."
+else
+  # Finder записывает настройки положения и размеров значков в .DS_Store только на
+  # смонтированный записываемый том. После настройки DMG конвертируется в сжатый UDZO.
+  hdiutil create -quiet \
+    -volname "$VOLUME_NAME" \
+    -srcfolder "$STAGE_DIR" \
+    -ov -format UDRW \
+    "$RW_DMG"
 
-hdiutil attach -readwrite -nobrowse -mountpoint "$MOUNT_DIR" "$RW_DMG" >/dev/null
-MOUNTED=1
+  hdiutil attach -readwrite -nobrowse -mountpoint "$MOUNT_DIR" "$RW_DMG" >/dev/null
+  MOUNTED=1
 
-# Окно Finder — опциональное оформление. В headless CI Apple Events могут быть
-# запрещены. Не разрушать корректный drag-to-Applications пакет из-за Finder.
-if [[ "${DMG_SKIP_FINDER_LAYOUT:-0}" != "1" ]] && command -v osascript >/dev/null 2>&1; then
-  if command -v perl >/dev/null 2>&1 && \
-    perl -e 'alarm shift; exec @ARGV or die $!' 20 \
-      /usr/bin/osascript "$SCRIPT_DIR/dmg-finder-layout.applescript" "$VOLUME_NAME" "$APP_NAME" >/dev/null 2>&1; then
-    if [[ -s "$MOUNT_DIR/.DS_Store" ]]; then
-      echo "Finder layout записан в образ."
+  # Окно Finder — опциональное оформление. В headless CI Apple Events могут быть
+  # запрещены. Не разрушать корректный drag-to-Applications пакет из-за Finder.
+  if [[ "${DMG_SKIP_FINDER_LAYOUT:-0}" != "1" ]] && command -v osascript >/dev/null 2>&1; then
+    if command -v perl >/dev/null 2>&1 && \
+      perl -e 'alarm shift; exec @ARGV or die $!' 20 \
+        /usr/bin/osascript "$SCRIPT_DIR/dmg-finder-layout.applescript" "$VOLUME_NAME" "$APP_NAME" >/dev/null 2>&1; then
+      if [[ -s "$MOUNT_DIR/.DS_Store" ]]; then
+        echo "Finder layout записан в образ."
+      else
+        echo "::warning::Finder не записал .DS_Store. Сохранён базовый DMG." >&2
+      fi
     else
-      echo "::warning::Finder не записал .DS_Store. Сохранён базовый DMG." >&2
+      echo "::warning::Finder недоступен: сохранён стандартный drag-to-Applications DMG." >&2
     fi
-  else
-    echo "::warning::Finder недоступен: сохранён стандартный drag-to-Applications DMG." >&2
   fi
+
+  sync
+  hdiutil detach "$MOUNT_DIR" >/dev/null
+  MOUNTED=0
+
+  rm -f "$OUTPUT_DMG"
+  hdiutil convert "$RW_DMG" \
+    -quiet -format UDZO \
+    -imagekey zlib-level=9 \
+    -o "$OUTPUT_DMG"
 fi
 
-sync
-hdiutil detach "$MOUNT_DIR" >/dev/null
-MOUNTED=0
-
-rm -f "$OUTPUT_DMG"
-hdiutil convert "$RW_DMG" \
-  -quiet -format UDZO \
-  -imagekey zlib-level=9 \
-  -o "$OUTPUT_DMG"
 hdiutil verify "$OUTPUT_DMG" >/dev/null
 
 # После convert повторно монтируем уже финальный read-only образ.
