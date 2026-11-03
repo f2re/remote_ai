@@ -1,5 +1,6 @@
 ---
 name: qa-security
+isolation: worktree
 description: Проверяет Remote AI на детерминированность состояний, устойчивость к command injection, безопасность данных и credentials, качество macOS-сборки и русскоязычный контракт.
 ---
 
