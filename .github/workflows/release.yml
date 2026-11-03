@@ -25,11 +25,11 @@ jobs:
     name: Сборка и публикация
     runs-on: macos-latest
     env:
-      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
-      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      CERT_PRESENT: ${{ secrets.MACOS_CERTIFICATE_P12 != '' }}
+      CERT_PASSWORD_PRESENT: ${{ secrets.MACOS_CERTIFICATE_PASSWORD != '' }}
+      APPLE_ID_PRESENT: ${{ secrets.APPLE_ID != '' }}
+      APPLE_TEAM_ID_PRESENT: ${{ secrets.APPLE_TEAM_ID != '' }}
+      APPLE_APP_PASSWORD_PRESENT: ${{ secrets.APPLE_APP_PASSWORD != '' }}
     steps:
       - name: Получение исходников
         uses: actions/checkout@v4
@@ -72,6 +72,30 @@ jobs:
           echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
           echo "PUBLISH_TAG=$PUBLISH_TAG" >> "$GITHUB_ENV"
 
+      - name: Проверка конфигурации подписи
+        shell: bash
+        run: |
+          present=0
+          for key in CERT_PRESENT CERT_PASSWORD_PRESENT APPLE_ID_PRESENT APPLE_TEAM_ID_PRESENT APPLE_APP_PASSWORD_PRESENT; do
+            if [[ "${!key}" == "true" ]]; then
+              present=$((present + 1))
+            fi
+          done
+          if [[ "$present" -gt 0 && "$present" -lt 5 ]]; then
+            echo "::error::Настроены не все пять Apple Developer ID secrets." >&2
+            exit 1
+          fi
+          if [[ "$present" -eq 5 ]]; then
+            echo "RELEASE_SIGNING=1" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_SIGNING=0" >> "$GITHUB_ENV"
+            if [[ "$GITHUB_REF_TYPE" == "tag" || "$GITHUB_REF_NAME" =~ ^release/publish-v ]]; then
+              echo "::error::Публикация без Developer ID и notarization запрещена. См. docs/RELEASE.md." >&2
+              exit 1
+            fi
+            echo "::notice::Dry run без Apple credentials. Это ad-hoc signed сборка."
+          fi
+
       - name: Версия toolchain
         run: swift --version
 
@@ -79,14 +103,19 @@ jobs:
         run: swift test --parallel
 
       - name: Импорт сертификата Developer ID
-        if: env.MACOS_CERTIFICATE_P12 != ''
+        if: env.RELEASE_SIGNING == '1'
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         shell: bash
         run: |
+          umask 077
           CERTIFICATE_PATH="$RUNNER_TEMP/remote-ai-certificate.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/remote-ai-signing.keychain-db"
           KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
 
-          printf '%s' "$MACOS_CERTIFICATE_P12" | base64 --decode > "$CERTIFICATE_PATH"
+          printf '%s' "$MACOS_CERTIFICATE_P12" | base64 -D > "$CERTIFICATE_PATH"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -100,6 +129,10 @@ jobs:
             exit 1
           fi
 
+          if [[ "$IDENTITY" != *"($APPLE_TEAM_ID)" ]]; then
+            echo "::error::Developer ID Application не соответствует APPLE_TEAM_ID." >&2
+            exit 1
+          fi
           echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           echo "SIGNED_RELEASE=1" >> "$GITHUB_ENV"
 
@@ -122,7 +155,11 @@ jobs:
           echo "APP_ZIP=$ZIP" >> "$GITHUB_ENV"
 
       - name: Notarization приложения и staple
-        if: env.MACOS_CERTIFICATE_P12 != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_PASSWORD != ''
+        if: env.RELEASE_SIGNING == '1'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         shell: bash
         run: |
           xcrun notarytool submit "$APP_ZIP" \
@@ -155,7 +192,11 @@ jobs:
           echo "DMG_FILE=$DMG" >> "$GITHUB_ENV"
 
       - name: Notarization DMG и staple
-        if: env.MACOS_CERTIFICATE_P12 != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_PASSWORD != ''
+        if: env.RELEASE_SIGNING == '1'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         shell: bash
         run: |
           if [[ "${APP_NOTARIZED_RELEASE:-0}" != "1" ]]; then
@@ -196,6 +237,21 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      - name: Обязательная проверка подписанного публичного выпуска
+        if: startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/release/publish-v')
+        shell: bash
+        run: |
+          [[ "${SIGNED_RELEASE:-0}" == "1" && "${APP_NOTARIZED_RELEASE:-0}" == "1" && "${NOTARIZED_RELEASE:-0}" == "1" ]] || {
+            echo "::error::Релиз не подписан и/или не notarized. Публикация запрещена." >&2
+            exit 1
+          }
+          codesign --verify --deep --strict ".build/app/RemoteAI.app"
+          codesign --verify --verbose=2 "$DMG_FILE"
+          xcrun stapler validate ".build/app/RemoteAI.app"
+          xcrun stapler validate "$DMG_FILE"
+          spctl --assess --type execute --verbose=4 ".build/app/RemoteAI.app"
+          hdiutil verify "$DMG_FILE"
+
       - name: Создание проверенного релизного тега
         if: startsWith(github.ref, 'refs/heads/release/publish-v')
         shell: bash
@@ -226,16 +282,11 @@ jobs:
             exit 1
           fi
 
-          EXTRA=()
-          if [[ "${NOTARIZED_RELEASE:-0}" != "1" ]]; then
-            EXTRA+=(--prerelease)
-          fi
-
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" \
               --title "Remote AI $TAG" \
               --notes-file "$NOTES_FILE" \
-              "${EXTRA[@]}"
+              --prerelease=false
             gh release upload "$TAG" \
               "$DMG_FILE" \
               "$APP_ZIP" \
@@ -251,6 +302,12 @@ jobs:
               SHA256SUMS.txt \
               "$RUNNER_TEMP"/RemoteAI-shots/*.png \
               --title "Remote AI $TAG" \
-              --notes-file "$NOTES_FILE" \
-              "${EXTRA[@]}"
+              --notes-file "$NOTES_FILE"
           fi
+
+      - name: Очистка временного signing keychain
+        if: always()
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/remote-ai-signing.keychain-db" >/dev/null 2>&1 || true
+          rm -f "$RUNNER_TEMP/remote-ai-certificate.p12"
