@@ -97,6 +97,12 @@ jobs:
       - name: Версия toolchain
         run: swift --version
 
+      - name: Security-тесты публикации и Apple notarization
+        shell: bash
+        run: |
+          bash tools/test-release-policy.sh
+          python3 tools/test-release-notarization.py
+
       - name: Модульные тесты
         run: swift test --parallel
 
