@@ -64,7 +64,7 @@ jobs:
             VERSION="${{ inputs.version }}"
             PUBLISH_TAG=""
           else
-            VERSION="0.2.2-rc.${GITHUB_RUN_NUMBER}"
+            VERSION="0.2.3-rc.${GITHUB_RUN_NUMBER}"
             PUBLISH_TAG=""
           fi
 
