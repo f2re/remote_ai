@@ -33,6 +33,8 @@ jobs:
         shell: bash
         run: |
           bash -n tools/configure-apple-signing.sh
+          bash -n tools/release-policy.sh
+          bash -n tools/test-release-policy.sh
           bash -n tools/create-dmg.sh
           ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/release.yml")'
 
@@ -52,6 +54,12 @@ jobs:
             echo "::error::Отсутствуют release notes для v$CI_APP_VERSION." >&2
             exit 1
           }
+
+      - name: Security-тесты публикации и Apple notarization
+        shell: bash
+        run: |
+          bash tools/test-release-policy.sh
+          python3 tools/test-release-notarization.py
 
       - name: Модульные тесты
         run: swift test --parallel
