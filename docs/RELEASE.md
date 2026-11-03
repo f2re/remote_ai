@@ -76,11 +76,37 @@ GitHub Actions secrets:
 - `APPLE_TEAM_ID`;
 - `APPLE_APP_PASSWORD`.
 
-При полном наборе credentials workflow импортирует сертификат во временный keychain, подписывает приложение hardened runtime, отправляет ZIP приложения в `notarytool`, выполняет staple/validate и Gatekeeper verification. После этого создаётся DMG, подписывается той же Developer ID identity, отдельно отправляется в `notarytool` и получает staple ticket.
+При полном наборе credentials workflow импортирует сертификат во временный keychain, подписывает приложение с Hardened Runtime и timestamp, отправляет ZIP приложения в `notarytool`, выполняет staple/validate и Gatekeeper verification. После этого создаётся DMG, подписывается той же Developer ID identity, отдельно отправляется в `notarytool` и получает staple ticket. После выполнения job временный keychain и копия сертификата удаляются.
 
-Если credentials отсутствуют, приложение остаётся ad-hoc signed, DMG всё равно собирается и проверяется, а GitHub Release автоматически помечается как **prerelease**. Такой build остаётся Universal 2 и codesign-verified, но Gatekeeper может потребовать дополнительные действия пользователя.
+**Публичные выпуски теперь fail-closed.** Если хотя бы одного из пяти секретов нет, ветка `release/publish-v*` или внешний тег `v*` не публикуются. Если настроена только часть секретов, падает даже dry run с объяснением причины. Ручной `workflow_dispatch` и непубликующие ветки `release/**` могут создавать ad-hoc signed кандидаты только при полном отсутствии секретов; такие кандидаты никогда не становятся GitHub Release.
 
-Secrets не сохраняются в репозитории.
+## Первичная настройка Apple Developer ID (один раз)
+
+Нужны активное участие в Apple Developer Program и доступ к сертификату **Developer ID Application** с соответствующим приватным ключом. Сертификат `Developer ID Installer` для DMG не подходит (он предназначен для `.pkg`).
+
+1. В [Apple Developer Certificates](https://developer.apple.com/account/resources/certificates/list) создайте или найдите `Developer ID Application`. На Mac, где создан ключ, откройте **Keychain Access → My Certificates** и экспортируйте сертификат **вместе с приватным ключом** как защищённый паролем файл `.p12`. Один файл `.cer` без приватного ключа недостаточен.
+2. Найдите десятисимвольный **Team ID** Apple Developer и email Apple ID. На [account.apple.com](https://account.apple.com/) создайте **App-Specific Password** для notarization (не основной пароль Apple ID).
+3. На своём Mac установите GitHub CLI при необходимости (`brew install gh`), выполните `gh auth login` с правом управлять Actions secrets репозитория и перейдите в каталог проекта.
+4. Загрузите credentials с локального Mac, без передачи их через чат:
+
+```bash
+bash tools/configure-apple-signing.sh ~/Downloads/DeveloperID.p12
+```
+
+Скрипт интерактивно запрашивает Apple ID, Team ID, пароль файла `.p12` и app-specific password. Последовательность запускает `gh secret set` через stdin, не печатает приватные значения и не записывает их в файлы проекта. После успешной загрузки удалите ненужные временные копии `.p12` со своего Mac и храните оригинал защищённо.
+
+5. Проверьте наличие именно **имён**, не значений, в [Settings → Secrets and variables → Actions](https://github.com/f2re/remote_ai/settings/secrets/actions). Для исключения незапланированной публикации ограничьте право push к веткам `release/publish-v*` и создания тегов `v*` через правила защиты репозитория.
+6. Проверьте подпись без публикации: **Actions → Релиз → Run workflow**, выберите `main`, оставьте version `0.2.2` (или передайте актуальную версию); либо:
+
+```bash
+gh workflow run release.yml --repo f2re/remote_ai --ref main -f version=0.2.2
+```
+
+В Actions должны успешно завершиться **«Импорт сертификата Developer ID»**, **«Notarization приложения и staple»** и **«Notarization DMG и staple»**. У ручного запуска не создаются тег и публичный Release. Сборку можно скачать в Actions artifacts.
+
+7. Только после успешного тестового прогона выпустите **новую версию**: подготовьте `docs/releases/v0.2.3.md`, обновите версию в соответствующих файлах и создайте `release/publish-v0.2.3` от текущего `main`. Тег `v0.2.2` уже опубликован как неподтверждённый prerelease — не подменяйте опубликованный пакет без прозрачного перевыпуска.
+
+**Безопасность:** не присылайте файл `.p12`, пароль от него или app-specific password в чат, pull request, Issue и логи CI. Доступ к secrets получают только авторизованные GitHub Actions job.
 
 ## Версионирование
 
