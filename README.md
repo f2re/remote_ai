@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Resources/AppIcon.svg" width="144" alt="Значок Remote AI — пиксельное облако">
+  <img src="Sources/RemoteAI/Resources/Mascot/mascot-thinking.png" width="156" alt="Remote AI — пиксельное облако">
 </p>
 
 <h1 align="center">Remote AI</h1>
@@ -59,9 +59,20 @@ macOS
 | **Ожидание ввода** | Claude закончил ход или ждёт подтверждения пользователя |
 | **Ошибка** | требуется внимание: конфликт синхронизации, SSH/runtime-сбой и т. п. |
 
-<p align="center">
-  <img src="https://github.com/f2re/remote_ai/releases/download/v0.2.1/mascot-states-light.png" width="760" alt="Состояния маскота Remote AI">
-</p>
+<table>
+<tr>
+<td align="center"><img src="Sources/RemoteAI/Resources/Mascot/mascot-offline.png" width="110"><br><b>Не в сети</b></td>
+<td align="center"><img src="Sources/RemoteAI/Resources/Mascot/mascot-connecting.png" width="110"><br><b>Подключение</b></td>
+<td align="center"><img src="Sources/RemoteAI/Resources/Mascot/mascot-syncing.png" width="110"><br><b>Синхронизация</b></td>
+</tr>
+<tr>
+<td align="center"><img src="Sources/RemoteAI/Resources/Mascot/mascot-thinking.png" width="110"><br><b>Claude работает</b></td>
+<td align="center"><img src="Sources/RemoteAI/Resources/Mascot/mascot-waiting.png" width="110"><br><b>Ожидание ввода</b></td>
+<td align="center"><img src="Sources/RemoteAI/Resources/Mascot/mascot-error.png" width="110"><br><b>Ошибка</b></td>
+</tr>
+</table>
+
+Подробная спецификация: [`docs/MASCOT.md`](docs/MASCOT.md) и [`design/KIT.md`](design/KIT.md).
 
 ## Быстрый старт
 

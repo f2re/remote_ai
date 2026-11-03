@@ -1,54 +1,45 @@
 # Kit пиксельного облака
 
+## Канонический визуал
+
+Remote AI использует один утверждённый пиксельный облачный маскот. Источником истины являются шесть PNG в `Sources/RemoteAI/Resources/Mascot/`.
+
+Это runtime-ассеты приложения, а не иллюстрации документации. Процедурный 16×10 Canvas-силуэт больше не является частью продукта.
+
+| State | Asset | Смысл |
+| --- | --- | --- |
+| `offline` | `mascot-offline.png` | спящее облако + `Z` |
+| `connecting` | `mascot-connecting.png` | открытые глаза + янтарные импульсы |
+| `syncing` | `mascot-syncing.png` | облако внутри круговых стрелок |
+| `thinking` | `mascot-thinking.png` | активное облако + импульсы |
+| `waiting` | `mascot-waiting.png` | спокойное облако + пузырь ожидания |
+| `error` | `mascot-error.png` | тревожное выражение + красный `!` |
+
+Все исходники 256×256 RGBA на прозрачном фоне. Runtime показывает их через `Image(nsImage:)` с `.interpolation(.none)` и `scaledToFit`, не перерисовывая лицо или контур.
+
 ## Характер
 
-Спокойное. Чёткое. Живое.
+Спокойное. Чёткое. Живое. Дружелюбное, но не детское. Маскот должен оставаться читаемым на маленьком плавающем окне и не конкурировать с рабочим контентом.
 
 ## Компонент `PixelCloudMascot`
 
-Назначение: единственная постоянная визуальная идентичность и state-control Remote AI.
+- выбирает PNG только по `MascotState`;
+- не накладывает второй набор status-pixels поверх уже нарисованного состояния;
+- допускает только микродвижение всего изображения: небольшой float/scale;
+- полностью останавливает repeating motion при Reduce Motion;
+- использует системный fallback только как аварийную страховку — CI обязан гарантировать наличие всех шести PNG.
 
-### Геометрия
+## Interaction
 
-- deterministic pixel grid, отрисованный SwiftUI-кодом;
-- компактный 16-column silhouette с мягкой слегка асимметричной верхней частью и устойчивым нижним mass;
-- eyes/mouth — отдельные state pixels;
-- status particles находятся вне лица и не касаются края hit target;
-- SF Symbol не заменяет тело облака.
-
-### Выражения
-
-- **Не в сети** — закрытые горизонтальные глаза, muted body;
-- **Подключение** — открытые глаза + moving/search pixel;
-- **Синхронизация** — открытые глаза + два orbiting satellites;
-- **Claude Code работает** — focused eyes + sparkle + subtle float;
-- **Ожидание ввода** — relaxed eyes + маленькая улыбка/steady pixel;
-- **Ошибка** — concerned eyes/mouth + compact warning cluster.
-
-### Interaction
-
-- rest — full-size cloud, transparent panel;
-- hover — небольшой scale-up + лёгкий system-material halo;
+- rest — прозрачная floating panel;
+- hover — очень небольшой scale-up + system-material halo;
 - pressed — небольшой scale-down без bounce;
-- unavailable actions disabled в context menu, не через disabled primary mascot.
+- основной клик зависит от состояния, context menu остаётся нативным macOS.
 
-### Motion
+## Иконка приложения
 
-Использовать только `MascotDesign.Motion`. Repeating motion останавливается при Reduce Motion.
+`AppIcon.icns` генерируется при сборке из `mascot-thinking.png` на фирменном тёмно-индиговом rounded-square фоне. Таким образом иконка и runtime-маскот используют одно и то же каноническое изображение.
 
-### Accessibility
+## Проверка
 
-Decorative renderer скрыт от accessibility. `MascotView` предоставляет одну кнопку с русским смысловым label из `MascotState.accessibilityLabel`.
-
-## `StatusPixels`
-
-- connecting — один moving square;
-- syncing — два squares на orbit;
-- thinking — four-pixel sparkle;
-- waiting — steady square;
-- error — exclamation-like cluster;
-- offline — отсутствует.
-
-## Нативные элементы
-
-Context menu, Настройки, system notifications и Warp/Terminal handoff не переоформляются под custom skin.
+`MascotDesignTests` проверяет, что все шесть состояний имеют читаемый bundled PNG. `ReleaseSnapshotTests` создаёт light/dark screenshots непосредственно из тех же runtime-ассетов. `tools/verify-release.sh` дополнительно проверяет, что все шесть PNG попали внутрь готового `.app`.
