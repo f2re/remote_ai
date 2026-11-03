@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -38,6 +38,8 @@ jobs:
           fetch-depth: 0
 
       - name: Определение исходного commit и версии
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         shell: bash
         run: |
           git fetch origin main --no-tags
@@ -61,7 +63,7 @@ jobs:
             git checkout --detach "$MAIN_SHA"
             git submodule update --init --recursive
           elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            VERSION="${{ inputs.version }}"
+            VERSION="$REQUESTED_VERSION"
             PUBLISH_TAG=""
           else
             VERSION="0.2.3-rc.${GITHUB_RUN_NUMBER}"
@@ -72,28 +74,24 @@ jobs:
           echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
           echo "PUBLISH_TAG=$PUBLISH_TAG" >> "$GITHUB_ENV"
 
-      - name: Проверка конфигурации подписи
+      - name: Проверка конфигурации подписи и назначения публикации
         shell: bash
         run: |
-          present=0
-          for key in CERT_PRESENT CERT_PASSWORD_PRESENT APPLE_ID_PRESENT APPLE_TEAM_ID_PRESENT APPLE_APP_PASSWORD_PRESENT; do
-            if [[ "${!key}" == "true" ]]; then
-              present=$((present + 1))
-            fi
-          done
-          if [[ "$present" -gt 0 && "$present" -lt 5 ]]; then
-            echo "::error::Настроены не все пять Apple Developer ID secrets." >&2
-            exit 1
+          RELEASE_SIGNING="$(bash tools/release-policy.sh)"
+          echo "RELEASE_SIGNING=$RELEASE_SIGNING" >> "$GITHUB_ENV"
+          if [[ "$RELEASE_SIGNING" == "0" ]]; then
+            echo "::notice::Dry-run без Apple credentials: ad-hoc candidate, публикация недоступна."
           fi
-          if [[ "$present" -eq 5 ]]; then
-            echo "RELEASE_SIGNING=1" >> "$GITHUB_ENV"
-          else
-            echo "RELEASE_SIGNING=0" >> "$GITHUB_ENV"
-            if [[ "$GITHUB_REF_TYPE" == "tag" || "$GITHUB_REF_NAME" =~ ^release/publish-v ]]; then
-              echo "::error::Публикация без Developer ID и notarization запрещена. См. docs/RELEASE.md." >&2
-              exit 1
-            fi
-            echo "::notice::Dry run без Apple credentials. Это ad-hoc signed сборка."
+
+      - name: Запрет изменения уже опубликованных релизов
+        if: env.PUBLISH_TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$PUBLISH_TAG" --json tagName >/dev/null 2>&1; then
+            echo "::error::Релиз $PUBLISH_TAG уже опубликован. Для новых файлов создайте новый номер версии." >&2
+            exit 1
           fi
 
       - name: Версия toolchain
@@ -162,11 +160,13 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         shell: bash
         run: |
+          NOTARY_RESULT="$RUNNER_TEMP/notary-app.json"
           xcrun notarytool submit "$APP_ZIP" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_PASSWORD" \
-            --wait
+            --wait --output-format json > "$NOTARY_RESULT"
+          python3 tools/verify-notarization.py "$NOTARY_RESULT"
           xcrun stapler staple ".build/app/RemoteAI.app"
           xcrun stapler validate ".build/app/RemoteAI.app"
           spctl --assess --type execute --verbose=4 ".build/app/RemoteAI.app"
@@ -204,11 +204,13 @@ jobs:
             exit 1
           fi
 
+          NOTARY_RESULT="$RUNNER_TEMP/notary-dmg.json"
           xcrun notarytool submit "$DMG_FILE" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_PASSWORD" \
-            --wait
+            --wait --output-format json > "$NOTARY_RESULT"
+          python3 tools/verify-notarization.py "$NOTARY_RESULT"
           xcrun stapler staple "$DMG_FILE"
           xcrun stapler validate "$DMG_FILE"
           hdiutil verify "$DMG_FILE"
@@ -282,28 +284,14 @@ jobs:
             exit 1
           fi
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" \
-              --title "Remote AI $TAG" \
-              --notes-file "$NOTES_FILE" \
-              --prerelease=false
-            gh release upload "$TAG" \
-              "$DMG_FILE" \
-              "$APP_ZIP" \
-              "$SCREENSHOTS_ZIP" \
-              SHA256SUMS.txt \
-              "$RUNNER_TEMP"/RemoteAI-shots/*.png \
-              --clobber
-          else
-            gh release create "$TAG" \
-              "$DMG_FILE" \
-              "$APP_ZIP" \
-              "$SCREENSHOTS_ZIP" \
-              SHA256SUMS.txt \
-              "$RUNNER_TEMP"/RemoteAI-shots/*.png \
-              --title "Remote AI $TAG" \
-              --notes-file "$NOTES_FILE"
-          fi
+          gh release create "$TAG" \
+            "$DMG_FILE" \
+            "$APP_ZIP" \
+            "$SCREENSHOTS_ZIP" \
+            SHA256SUMS.txt \
+            "$RUNNER_TEMP"/RemoteAI-shots/*.png \
+            --title "Remote AI $TAG" \
+            --notes-file "$NOTES_FILE"
 
       - name: Очистка временного signing keychain
         if: always()
