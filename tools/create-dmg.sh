@@ -33,6 +33,11 @@ APP_NAME="$(basename "$APP_PATH")"
 ditto "$APP_PATH" "$STAGE_DIR/$APP_NAME"
 ln -s /Applications "$STAGE_DIR/Applications"
 
+# Даже в headless CI AppleScript обязан успешно проходить синтаксическую проверку.
+if command -v osacompile >/dev/null 2>&1; then
+  osacompile -o "$WORK_DIR/dmg-finder-layout.scpt" "$SCRIPT_DIR/dmg-finder-layout.applescript"
+fi
+
 # Finder записывает настройки положения и размеров значков в .DS_Store только на
 # смонтированный записываемый том. После настройки DMG конвертируется в сжатый UDZO.
 hdiutil create -quiet \
