@@ -11,7 +11,7 @@ on:
       version:
         description: "Версия артефакта для тестовой сборки"
         required: true
-        default: "0.2.1"
+        default: "0.2.2"
 
 permissions:
   contents: write
@@ -64,7 +64,7 @@ jobs:
             VERSION="${{ inputs.version }}"
             PUBLISH_TAG=""
           else
-            VERSION="0.2.1-rc.${GITHUB_RUN_NUMBER}"
+            VERSION="0.2.2-rc.${GITHUB_RUN_NUMBER}"
             PUBLISH_TAG=""
           fi
 
@@ -121,7 +121,7 @@ jobs:
           unzip -t "$ZIP"
           echo "APP_ZIP=$ZIP" >> "$GITHUB_ENV"
 
-      - name: Notarization и staple
+      - name: Notarization приложения и staple
         if: env.MACOS_CERTIFICATE_P12 != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_PASSWORD != ''
         shell: bash
         run: |
@@ -138,6 +138,39 @@ jobs:
           rm -f "$APP_ZIP"
           ditto -c -k --sequesterRsrc --keepParent ".build/app/RemoteAI.app" "$APP_ZIP"
           unzip -t "$APP_ZIP"
+          echo "APP_NOTARIZED_RELEASE=1" >> "$GITHUB_ENV"
+
+      - name: Создание DMG
+        shell: bash
+        run: |
+          DMG="RemoteAI-${APP_VERSION}-macOS.dmg"
+          bash ./tools/create-dmg.sh ".build/app/RemoteAI.app" "$DMG" "Remote AI ${APP_VERSION}"
+
+          if [[ "${SIGNED_RELEASE:-0}" == "1" ]]; then
+            codesign --force --timestamp --sign "$CODESIGN_IDENTITY" "$DMG"
+            codesign --verify --verbose=2 "$DMG"
+          fi
+
+          hdiutil verify "$DMG"
+          echo "DMG_FILE=$DMG" >> "$GITHUB_ENV"
+
+      - name: Notarization DMG и staple
+        if: env.MACOS_CERTIFICATE_P12 != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_PASSWORD != ''
+        shell: bash
+        run: |
+          if [[ "${APP_NOTARIZED_RELEASE:-0}" != "1" ]]; then
+            echo "Приложение не прошло notarization перед упаковкой DMG." >&2
+            exit 1
+          fi
+
+          xcrun notarytool submit "$DMG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+          xcrun stapler staple "$DMG_FILE"
+          xcrun stapler validate "$DMG_FILE"
+          hdiutil verify "$DMG_FILE"
           echo "NOTARIZED_RELEASE=1" >> "$GITHUB_ENV"
 
       - name: Упаковка снимков и контрольных сумм
@@ -146,7 +179,7 @@ jobs:
           SCREENSHOTS_ZIP="RemoteAI-${APP_VERSION}-screenshots.zip"
           ditto -c -k --keepParent "$RUNNER_TEMP/RemoteAI-shots" "$SCREENSHOTS_ZIP"
           unzip -t "$SCREENSHOTS_ZIP"
-          shasum -a 256 "$APP_ZIP" "$SCREENSHOTS_ZIP" > SHA256SUMS.txt
+          shasum -a 256 "$DMG_FILE" "$APP_ZIP" "$SCREENSHOTS_ZIP" > SHA256SUMS.txt
           (cd "$RUNNER_TEMP/RemoteAI-shots" && shasum -a 256 *.png) >> SHA256SUMS.txt
           echo "SCREENSHOTS_ZIP=$SCREENSHOTS_ZIP" >> "$GITHUB_ENV"
 
@@ -155,6 +188,7 @@ jobs:
         with:
           name: RemoteAI-${{ env.APP_VERSION }}-release
           path: |
+            ${{ env.DMG_FILE }}
             ${{ env.APP_ZIP }}
             ${{ env.SCREENSHOTS_ZIP }}
             SHA256SUMS.txt
@@ -203,6 +237,7 @@ jobs:
               --notes-file "$NOTES_FILE" \
               "${EXTRA[@]}"
             gh release upload "$TAG" \
+              "$DMG_FILE" \
               "$APP_ZIP" \
               "$SCREENSHOTS_ZIP" \
               SHA256SUMS.txt \
@@ -210,6 +245,7 @@ jobs:
               --clobber
           else
             gh release create "$TAG" \
+              "$DMG_FILE" \
               "$APP_ZIP" \
               "$SCREENSHOTS_ZIP" \
               SHA256SUMS.txt \

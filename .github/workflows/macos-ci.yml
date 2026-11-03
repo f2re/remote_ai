@@ -19,7 +19,7 @@ jobs:
     name: Проверка macOS
     runs-on: macos-latest
     env:
-      CI_APP_VERSION: "0.2.1"
+      CI_APP_VERSION: "0.2.2"
     steps:
       - name: Получение исходников
         uses: actions/checkout@v4
@@ -51,11 +51,17 @@ jobs:
         shell: bash
         run: |
           ZIP="RemoteAI-${CI_APP_VERSION}-ci-${GITHUB_RUN_NUMBER}-macOS.zip"
+          DMG="RemoteAI-${CI_APP_VERSION}-ci-${GITHUB_RUN_NUMBER}-macOS.dmg"
           SHOTS="RemoteAI-${CI_APP_VERSION}-ci-${GITHUB_RUN_NUMBER}-screenshots.zip"
+
           ditto -c -k --sequesterRsrc --keepParent ".build/app/RemoteAI.app" "$ZIP"
-          ditto -c -k --keepParent "$RUNNER_TEMP/RemoteAI-shots" "$SHOTS"
           unzip -t "$ZIP"
-          shasum -a 256 "$ZIP" "$SHOTS" > SHA256SUMS.txt
+          bash ./tools/create-dmg.sh ".build/app/RemoteAI.app" "$DMG" "Remote AI ${CI_APP_VERSION} CI"
+          hdiutil verify "$DMG"
+          ditto -c -k --keepParent "$RUNNER_TEMP/RemoteAI-shots" "$SHOTS"
+
+          shasum -a 256 "$DMG" "$ZIP" "$SHOTS" > SHA256SUMS.txt
+          echo "CI_APP_DMG=$DMG" >> "$GITHUB_ENV"
           echo "CI_APP_ZIP=$ZIP" >> "$GITHUB_ENV"
           echo "CI_SHOTS_ZIP=$SHOTS" >> "$GITHUB_ENV"
 
@@ -64,6 +70,7 @@ jobs:
         with:
           name: RemoteAI-${{ env.CI_APP_VERSION }}-${{ github.run_number }}-verified
           path: |
+            ${{ env.CI_APP_DMG }}
             ${{ env.CI_APP_ZIP }}
             ${{ env.CI_SHOTS_ZIP }}
             SHA256SUMS.txt
