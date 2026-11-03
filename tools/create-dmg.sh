@@ -17,13 +17,13 @@ fi
 
 STAGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/remoteai-dmg-stage.XXXXXX")"
 MOUNT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/remoteai-dmg-mount.XXXXXX")"
-MOUNT_DEVICE=""
+MOUNTED=0
 
 cleanup() {
-  if [[ -n "$MOUNT_DEVICE" ]]; then
-    hdiutil detach "$MOUNT_DEVICE" -force >/dev/null 2>&1 || true
+  if [[ "$MOUNTED" == "1" ]]; then
+    hdiutil detach "$MOUNT_DIR" -force >/dev/null 2>&1 || true
   fi
-  rm -rf "$STAGE_DIR" "$MOUNT_DIR"
+  rm -rf "$STAGE_DIR" "$MOUNT_DIR" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -43,8 +43,8 @@ hdiutil create \
 
 hdiutil verify "$OUTPUT_DMG" >/dev/null
 
-ATTACH_OUTPUT="$(hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT_DIR" "$OUTPUT_DMG")"
-MOUNT_DEVICE="$(printf '%s\n' "$ATTACH_OUTPUT" | awk 'NR == 1 {print $1}')"
+hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT_DIR" "$OUTPUT_DMG" >/dev/null
+MOUNTED=1
 
 [[ -d "$MOUNT_DIR/$APP_NAME" ]] || {
   echo "DMG не содержит $APP_NAME" >&2
@@ -63,8 +63,8 @@ if command -v codesign >/dev/null 2>&1; then
   codesign --verify --deep --strict "$MOUNT_DIR/$APP_NAME"
 fi
 
-hdiutil detach "$MOUNT_DEVICE" >/dev/null
-MOUNT_DEVICE=""
+hdiutil detach "$MOUNT_DIR" >/dev/null
+MOUNTED=0
 rmdir "$MOUNT_DIR"
 
 printf '%s\n' "$OUTPUT_DMG"
