@@ -4,7 +4,9 @@ import SwiftUI
 struct MascotView: View {
     @ObservedObject var model: AppModel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hovering = false
+    @State private var blink = false
 
     var body: some View {
         ZStack {
@@ -16,9 +18,12 @@ struct MascotView: View {
                     .transition(.opacity)
             }
 
-            PixelCloudMascot(state: model.state)
+            PixelCloudMascot(state: model.state, blink: blink)
                 .frame(width: MascotDesign.Metric.artWidth, height: MascotDesign.Metric.artHeight)
-                .opacity(isOffline ? 0.86 : 1)
+                .opacity(isOffline ? 0.72 : 1)
+
+            MascotStatusPixels(state: model.state, reduceMotion: reduceMotion)
+                .id(model.state.accessibilityLabel)
         }
         .frame(width: MascotDesign.Metric.hitSize, height: MascotDesign.Metric.hitSize)
         .contentShape(Rectangle())
@@ -61,6 +66,15 @@ struct MascotView: View {
             Button("Настройки…") { model.showSettings() }
             Divider()
             Button("Завершить Remote AI") { NSApp.terminate(nil) }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 4_200_000_000)
+                guard !Task.isCancelled, !reduceMotion, !isOffline else { continue }
+                blink = true
+                try? await Task.sleep(nanoseconds: 110_000_000)
+                blink = false
+            }
         }
     }
 
