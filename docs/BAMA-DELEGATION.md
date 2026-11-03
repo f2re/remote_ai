@@ -25,3 +25,26 @@
 7. Merge разрешён только после обязательных build/test/snapshot gates.
 
 Локальные агенты — маршрутизаторы к BAMA, а не альтернативный фреймворк.
+
+## Параллельное выполнение релизного спринта
+
+Зафиксированные автономные рабочие пакеты:
+
+- [#30 — qa-security: release gate, подписание и тесты отказов](https://github.com/f2re/remote_ai/issues/30);
+- [#31 — macos-ui: drag-to-Applications DMG, layout и UX-тестирование](https://github.com/f2re/remote_ai/issues/31).
+
+У них **не пересекаются файлы-владения**. В конфигурации обоих агентов установлено `isolation: worktree`: изменения должны выполняться в отдельных рабочих деревьях, не в `main`. Команды запускаются на Mac с установленным и авторизованным Claude Code и с локальным клоном репозитория. После `git pull --ff-only` откройте **два отдельных окна Terminal**:
+
+Окно 1:
+
+```bash
+./scripts/claude-bama.sh --worktree release-security --agent qa-security "Реализуй issue https://github.com/f2re/remote_ai/issues/30. Соблюдай AGENTS.md и BAMA; сначала тесты, затем исправления. Создай отдельный PR, не публикуй релиз."
+```
+
+Окно 2:
+
+```bash
+./scripts/claude-bama.sh --worktree dmg-installer --agent macos-ui "Реализуй issue https://github.com/f2re/remote_ai/issues/31. Соблюдай AGENTS.md и BAMA; UX и проверки на macOS. Создай отдельный PR, не публикуй релиз."
+```
+
+Для исполнения нужны локальные Claude Code credentials, права GitHub и доступный `vendor/bama`; скрипт самостоятельно инициализирует submodule. **Создание задач не является автоматическим запуском агентов.** Подтверждайте предложенные ими действия в соответствии с настройками разрешений. Оркестратор проверяет diff, тесты и CI каждого PR и только потом объединяет изменения. Никакие Apple signing secrets агентам для этих задач не передаются.
