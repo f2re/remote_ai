@@ -17,11 +17,16 @@ on run argv
             set arrangement of iconOptions to not arranged
             set icon size of iconOptions to 128
             set text size of iconOptions to 14
+            set label position of iconOptions to bottom
+            set shows item info of iconOptions to false
             set background color of iconOptions to {65535, 65535, 65535}
 
             set position of item applicationName of container window to {168, 185}
             set position of item "Applications" of container window to {470, 185}
-            update
+            close
+            open
+            update without registering applications
+            delay 1
             close
         end tell
     end tell
