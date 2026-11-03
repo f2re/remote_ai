@@ -94,6 +94,11 @@ hdiutil verify "$OUTPUT_DMG" >/dev/null
 hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT_DIR" "$OUTPUT_DMG" >/dev/null
 MOUNTED=1
 
+if [[ -n "${DMGBUILD_BIN:-}" && ! -s "$MOUNT_DIR/.DS_Store" ]]; then
+  echo "Headless DMG должен содержать .DS_Store с оформлением Finder." >&2
+  exit 1
+fi
+
 [[ -d "$MOUNT_DIR/$APP_NAME" ]] || {
   echo "DMG не содержит $APP_NAME" >&2
   exit 1
