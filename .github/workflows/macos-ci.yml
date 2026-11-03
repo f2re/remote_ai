@@ -71,6 +71,14 @@ jobs:
       - name: Проверка релизного bundle
         run: ./tools/verify-release.sh ".build/app/RemoteAI.app" "$RUNNER_TEMP/RemoteAI-shots" "$CI_APP_VERSION"
 
+      - name: Установка headless DMG layout (dmgbuild 1.6.7)
+        shell: bash
+        run: |
+          python3 -m venv "$RUNNER_TEMP/dmgbuild-venv"
+          "$RUNNER_TEMP/dmgbuild-venv/bin/python" -m pip install \
+            --disable-pip-version-check "dmgbuild==1.6.7"
+          echo "DMGBUILD_BIN=$RUNNER_TEMP/dmgbuild-venv/bin/dmgbuild" >> "$GITHUB_ENV"
+
       - name: Упаковка CI-кандидата
         shell: bash
         run: |
