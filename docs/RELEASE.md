@@ -52,6 +52,10 @@ Release workflow:
 
 Файл release notes обязателен. Автоматический `--generate-notes` намеренно не используется, чтобы пользовательский текст выпуска оставался русским и контролируемым.
 
+**Опубликованные артефакты неизменяемы:** release workflow проверяет наличие GitHub Release с тем же тегом до сборки и отклоняет повторную публикацию. Команды `gh release edit`, `upload --clobber` не используются. Если тег создан, но выпуск не завершился, можно повторить publish-ветку при условии, что GitHub Release ещё отсутствует. Если релиз уже существует, исправление выпускается новым номером версии.
+
+Политика `tools/release-policy.sh` валидирует формат версии и ссылки, тип запуска и полный набор Apple secrets; логика покрыта offline-тестами `tools/test-release-policy.sh`. Вывод `notarytool submit --wait --output-format json` обязательно проверяется `tools/verify-notarization.py`: только явный статус `Accepted` вместе с корректным submission ID разрешает `stapler` и последующую публикацию. Тесты выполняются в macOS CI и Release workflow.
+
 ## Внешний tag
 
 Поддерживается и ручной `v*` tag, но его target обязан входить в `main`. Для него используется тот же release gate и тот же `docs/releases/<tag>.md`.
