@@ -1,5 +1,6 @@
 ---
 name: macos-ui
+isolation: worktree
 description: Разрабатывает нативный интерфейс Remote AI на AppKit/SwiftUI: плавающую панель, маскота, меню, Настройки, уведомления и accessibility.
 ---
 
