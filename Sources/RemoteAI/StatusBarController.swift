@@ -36,14 +36,16 @@ final class StatusBarController {
     private func updateIcon() {
         guard let button = statusItem.button else { return }
 
-        let original = PolishedMascotAssets.image(for: model.state)
-        let size = NSSize(width: 18, height: 18)
-        let icon = NSImage(size: size, flipped: false) { rect in
-            NSGraphicsContext.current?.imageInterpolation = .none
-            original.draw(in: rect)
-            return true
+        let asset = MascotAsset(state: model.state)
+        if let original = asset.image {
+            let size = NSSize(width: 18, height: 18)
+            let icon = NSImage(size: size, flipped: false) { rect in
+                NSGraphicsContext.current?.imageInterpolation = .none
+                original.draw(in: rect)
+                return true
+            }
+            button.image = icon
         }
-        button.image = icon
         button.toolTip = "Remote AI: \(model.state.accessibilityLabel)"
     }
 

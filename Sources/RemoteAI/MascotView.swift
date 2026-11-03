@@ -16,7 +16,7 @@ struct MascotView: View {
                     .transition(.opacity)
             }
 
-            PolishedMascotArtwork(state: model.state)
+            PixelCloudMascot(state: model.state)
                 .frame(width: MascotDesign.Metric.artWidth, height: MascotDesign.Metric.artHeight)
                 .opacity(isOffline ? 0.86 : 1)
         }

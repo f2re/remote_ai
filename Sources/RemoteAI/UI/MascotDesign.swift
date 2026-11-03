@@ -19,6 +19,9 @@ enum MascotDesign {
         static let state = Animation.easeInOut(duration: 0.18)
         static let orbit = Animation.linear(duration: 1.35).repeatForever(autoreverses: false)
         static let sparkle = Animation.easeInOut(duration: 0.85).repeatForever(autoreverses: true)
+        static let idle = Animation.easeInOut(duration: 1.65).repeatForever(autoreverses: true)
+        static let livelyIdle = Animation.easeInOut(duration: 1.05).repeatForever(autoreverses: true)
+        static let errorPulse = Animation.easeInOut(duration: 0.72).repeatForever(autoreverses: true)
     }
 
     enum Palette {

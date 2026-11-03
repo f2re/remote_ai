@@ -72,12 +72,16 @@ final class MascotDesignTests: XCTestCase {
         XCTAssertNotNil(controller)
     }
 
-    func testPolishedMascotAssetsAllStatesLoad() {
+    func testMascotAssetsAllStatesLoad() {
         let states: [MascotState] = [.offline, .connecting, .syncing, .thinking, .waiting, .error("err")]
         for s in states {
-            let img = PolishedMascotAssets.image(for: s)
-            XCTAssertGreaterThan(img.size.width, 0)
-            XCTAssertGreaterThan(img.size.height, 0)
+            let asset = MascotAsset(state: s)
+            let img = asset.image
+            XCTAssertNotNil(img, "Asset for state \(s) must load")
+            if let img {
+                XCTAssertGreaterThan(img.size.width, 0)
+                XCTAssertGreaterThan(img.size.height, 0)
+            }
         }
     }
 }

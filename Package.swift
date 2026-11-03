@@ -11,6 +11,9 @@ let package = Package(
         .executableTarget(
             name: "RemoteAI",
             path: "Sources/RemoteAI",
+            resources: [
+                .copy("Resources/Mascot")
+            ],
             swiftSettings: [
                 .enableUpcomingFeature("BareSlashRegexLiterals")
             ]

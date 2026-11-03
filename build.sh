@@ -33,6 +33,7 @@ CONTENTS="$APP_DIR/Contents"
 ICON_SOURCE="$ROOT/.build/AppIcon-1024.png"
 ICONSET="$ROOT/.build/AppIcon.iconset"
 ICNS="$ROOT/.build/AppIcon.icns"
+MASCOT_ICON_SOURCE="$ROOT/Sources/RemoteAI/Resources/Mascot/mascot-thinking.png"
 
 rm -rf "$APP_DIR"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
@@ -46,6 +47,7 @@ if [[ "$CONFIGURATION" == "release" && "$UNIVERSAL_BUILD" == "1" ]]; then
 
   ARM_BIN_DIR="$(swift build -c release --arch arm64 --scratch-path "$ARM_SCRATCH" --show-bin-path)"
   X86_BIN_DIR="$(swift build -c release --arch x86_64 --scratch-path "$X86_SCRATCH" --show-bin-path)"
+  RESOURCE_BIN_DIR="$ARM_BIN_DIR"
 
   /usr/bin/lipo -create \
     "$ARM_BIN_DIR/RemoteAI" \
@@ -54,6 +56,7 @@ if [[ "$CONFIGURATION" == "release" && "$UNIVERSAL_BUILD" == "1" ]]; then
 else
   swift build -c "$CONFIGURATION"
   BIN_DIR="$(swift build -c "$CONFIGURATION" --show-bin-path)"
+  RESOURCE_BIN_DIR="$BIN_DIR"
   cp "$BIN_DIR/RemoteAI" "$CONTENTS/MacOS/RemoteAI"
 fi
 
@@ -66,7 +69,22 @@ if [[ -n "${BUILD_NUMBER:-}" ]]; then
   plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$CONTENTS/Info.plist"
 fi
 
-swift "$ROOT/scripts/generate-app-icon.swift" "$ICON_SOURCE" >/dev/null
+RESOURCE_BUNDLE="$RESOURCE_BIN_DIR/RemoteAI_RemoteAI.bundle"
+if [[ ! -d "$RESOURCE_BUNDLE" ]]; then
+  RESOURCE_BUNDLE="$(find "$RESOURCE_BIN_DIR" -maxdepth 1 -type d -name '*RemoteAI*.bundle' -print -quit)"
+fi
+if [[ -z "$RESOURCE_BUNDLE" || ! -d "$RESOURCE_BUNDLE" ]]; then
+  echo "Не найден SwiftPM resource bundle с маскотом в $RESOURCE_BIN_DIR" >&2
+  exit 1
+fi
+cp -R "$RESOURCE_BUNDLE" "$CONTENTS/Resources/RemoteAI_RemoteAI.bundle"
+
+for state in offline connecting syncing thinking waiting error; do
+  ASSET="$CONTENTS/Resources/RemoteAI_RemoteAI.bundle/Mascot/mascot-$state.png"
+  [[ -s "$ASSET" ]] || { echo "В app bundle отсутствует mascot-$state.png" >&2; exit 1; }
+done
+
+swift "$ROOT/scripts/generate-app-icon.swift" "$ICON_SOURCE" "$MASCOT_ICON_SOURCE" >/dev/null
 rm -rf "$ICONSET" "$ICNS"
 mkdir -p "$ICONSET"
 
