@@ -11,7 +11,7 @@ on:
       version:
         description: "Версия артефакта для тестовой сборки"
         required: true
-        default: "0.2.2"
+        default: "0.2.3"
 
 permissions:
   contents: write
