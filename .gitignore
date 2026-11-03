@@ -5,3 +5,6 @@ DerivedData/
 xcuserdata/
 *.xcuserstate
 .remote-ai.local.json
+
+# Отдельные рабочие деревья Claude Code (агенты)
+.claude/worktrees/

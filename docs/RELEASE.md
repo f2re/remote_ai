@@ -23,13 +23,15 @@ Feature-branch push не дублирует тяжёлую Universal-сборк�
 
 ## Публикация — основной путь
 
+**Только после** успешного тестового notarization и добавления `docs/releases/v0.2.3.md` с соответствующим изменением версии создайте publish-ветку. Без Apple credentials release gate отклонит публикацию до создания нового тега.
+
 Из текущего зелёного `main` создайте и отправьте ветку:
 
 ```bash
 git switch main
 git pull --ff-only
-git switch -c release/publish-v0.2.2
-git push -u origin release/publish-v0.2.2
+git switch -c release/publish-v0.2.3
+git push -u origin release/publish-v0.2.3
 ```
 
 Дополнительный marker commit не требуется. Сам push новой publish-ветки запускает транзакцию выпуска.
@@ -96,10 +98,10 @@ bash tools/configure-apple-signing.sh ~/Downloads/DeveloperID.p12
 Скрипт интерактивно запрашивает Apple ID, Team ID, пароль файла `.p12` и app-specific password. Последовательность запускает `gh secret set` через stdin, не печатает приватные значения и не записывает их в файлы проекта. После успешной загрузки удалите ненужные временные копии `.p12` со своего Mac и храните оригинал защищённо.
 
 5. Проверьте наличие именно **имён**, не значений, в [Settings → Secrets and variables → Actions](https://github.com/f2re/remote_ai/settings/secrets/actions). Для исключения незапланированной публикации ограничьте право push к веткам `release/publish-v*` и создания тегов `v*` через правила защиты репозитория.
-6. Проверьте подпись без публикации: **Actions → Релиз → Run workflow**, выберите `main`, оставьте version `0.2.2` (или передайте актуальную версию); либо:
+6. Проверьте подпись без публикации: **Actions → Релиз → Run workflow**, выберите `main`, оставьте version `0.2.3` (или передайте актуальную версию); либо:
 
 ```bash
-gh workflow run release.yml --repo f2re/remote_ai --ref main -f version=0.2.2
+gh workflow run release.yml --repo f2re/remote_ai --ref main -f version=0.2.3
 ```
 
 В Actions должны успешно завершиться **«Импорт сертификата Developer ID»**, **«Notarization приложения и staple»** и **«Notarization DMG и staple»**. У ручного запуска не создаются тег и публичный Release. Сборку можно скачать в Actions artifacts.

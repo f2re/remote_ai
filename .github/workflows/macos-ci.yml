@@ -19,7 +19,7 @@ jobs:
     name: Проверка macOS
     runs-on: macos-latest
     env:
-      CI_APP_VERSION: "0.2.2"
+      CI_APP_VERSION: "0.2.3"
     steps:
       - name: Получение исходников
         uses: actions/checkout@v4
@@ -35,6 +35,23 @@ jobs:
           bash -n tools/configure-apple-signing.sh
           bash -n tools/create-dmg.sh
           ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/release.yml")'
+
+      - name: Проверка единой версии и release notes
+        shell: bash
+        run: |
+          BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
+          [[ "$BUNDLE_VERSION" == "$CI_APP_VERSION" ]] || {
+            echo "::error::Версия Info.plist $BUNDLE_VERSION не соответствует CI $CI_APP_VERSION." >&2
+            exit 1
+          }
+          grep -Fq "default: \"$CI_APP_VERSION\"" .github/workflows/release.yml || {
+            echo "::error::Версия workflow_dispatch не соответствует CI." >&2
+            exit 1
+          }
+          [[ -s "docs/releases/v${CI_APP_VERSION}.md" ]] || {
+            echo "::error::Отсутствуют release notes для v$CI_APP_VERSION." >&2
+            exit 1
+          }
 
       - name: Модульные тесты
         run: swift test --parallel

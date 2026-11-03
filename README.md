@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/f2re/remote_ai/actions/workflows/macos-ci.yml"><img src="https://github.com/f2re/remote_ai/actions/workflows/macos-ci.yml/badge.svg" alt="Статус CI"></a>
-  <img src="https://img.shields.io/badge/macOS-14%2B-black" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/macOS-13%2B-black" alt="macOS 13+">
   <img src="https://img.shields.io/badge/Swift-6-orange" alt="Swift 6">
   <img src="https://img.shields.io/badge/Universal%202-arm64%20%2B%20x86__64-blue" alt="Universal 2">
   <img src="https://img.shields.io/badge/интерфейс-русский-green" alt="Русский интерфейс">
@@ -78,7 +78,7 @@ macOS
 
 ### 1. Подготовьте Mac
 
-Требуется macOS 14 или новее. Установите Mutagen:
+Минимальная версия по `Package.swift` и `Info.plist` — macOS 13.0. Релизные сборки проверяются в GitHub Actions на актуальном macOS runner. Установите Mutagen:
 
 ```bash
 brew install mutagen-io/mutagen/mutagen
@@ -113,7 +113,9 @@ Host my-claude-server
 
 ### 4. Запустите Remote AI
 
-Скачайте текущий пакет на странице [Releases](https://github.com/f2re/remote_ai/releases), распакуйте `RemoteAI-<version>-macOS.zip` и откройте `RemoteAI.app`.
+**Текущая доступная версия — [v0.2.2](https://github.com/f2re/remote_ai/releases/tag/v0.2.2) (предварительный выпуск).** Скачайте `RemoteAI-0.2.2-macOS.dmg`, откройте образ, перетащите `RemoteAI.app` в папку `Applications` и запускайте приложение из неё. ZIP доступен как резервный дистрибутив.
+
+**Важно:** v0.2.2 опубликован без Apple Developer ID signing и notarization. macOS Gatekeeper может заблокировать его запуск. Этот пакет предназначен для тестирования; перед распространением как доверенного приложения необходимо настроить сертификат разработчика и выпустить подписанную версию. Инструкция: [`docs/RELEASE.md`](docs/RELEASE.md).
 
 В **Настройках**:
 
@@ -124,7 +126,7 @@ Host my-claude-server
 5. нажмите **«Запустить / переподключить»**.
 
 <p align="center">
-  <img src="https://github.com/f2re/remote_ai/releases/download/v0.2.1/settings-light.png" width="620" alt="Настройки Remote AI на русском языке">
+  <img src="https://github.com/f2re/remote_ai/releases/download/v0.2.2/settings-light.png" width="620" alt="Настройки Remote AI на русском языке">
 </p>
 
 ## Управление
@@ -185,22 +187,22 @@ open ~/Applications/RemoteAI.app
 Полный релизный пакет проверяется так:
 
 ```bash
-./tools/verify-release.sh .build/app/RemoteAI.app /tmp/RemoteAI-shots 0.2.1
+./tools/verify-release.sh .build/app/RemoteAI.app /tmp/RemoteAI-shots 0.2.3
 ```
 
 Проверяются архитектуры Universal 2, codesign, metadata bundle, версия, значок, 16 PNG и целостность релизных архивов.
 
 ## CI/CD и релизы
 
-PR и `main` проходят macOS CI: тесты → release compile → Universal 2 → snapshots → проверка bundle/codesign → ZIP/SHA-256.
+PR и `main` проходят macOS CI: тесты → release compile → Universal 2 → snapshots → проверка bundle/codesign → DMG + ZIP → SHA-256.
 
 Публикация выполняется через ветку вида:
 
 ```text
-release/publish-v0.2.1
+release/publish-v0.2.3
 ```
 
-Release workflow повторно проверяет текущий `main`, ставит неизменяемый тег на проверенный SHA и публикует приложение, screenshots ZIP, `SHA256SUMS.txt` и отдельные PNG. Если Developer ID/notarization secrets отсутствуют, выпуск помечается как prerelease. Подробности: [`docs/RELEASE.md`](docs/RELEASE.md).
+Release workflow повторно проверяет текущий `main`, ставит неизменяемый тег на проверенный SHA и публикует основной DMG, резервный ZIP, screenshots ZIP, `SHA256SUMS.txt` и отдельные PNG. **Новая публичная публикация невозможна без Apple Developer ID signing, notarization приложения и DMG, staple и Gatekeeper verification.** Без секретов допускаются только непубликующие release candidates. Подробности: [`docs/RELEASE.md`](docs/RELEASE.md).
 
 ## Разработка с BAMA
 
