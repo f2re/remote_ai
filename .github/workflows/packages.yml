@@ -1,0 +1,119 @@
+name: Публикация DMG в GitHub Packages
+
+on:
+  workflow_call:
+  release:
+    types: [published]
+  push:
+    branches:
+      - "packages/publish-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Уже опубликованный релиз, например v0.2.2"
+        required: true
+        default: "v0.2.2"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ghcr-dmg-${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: DMG → OCI/GHCR
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GHCR_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      REQUESTED_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Установка ORAS
+        uses: oras-project/setup-oras@v2.0.3
+        with:
+          version: "1.3.6"
+
+      - name: Определение проверенного релиза
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            TAG="$RELEASE_TAG"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            TAG="$REQUESTED_TAG"
+          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            [[ "$GITHUB_REF_NAME" =~ ^(packages|release)/publish-(v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?)$ ]] || {
+              echo "::error::Некорректная ветка публикации пакета" >&2
+              exit 1
+            }
+            TAG="${BASH_REMATCH[2]}"
+          fi
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]] || {
+            echo "::error::Недопустимый тег: $TAG" >&2
+            exit 1
+          }
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' | grep -qx false || {
+            echo "::error::GitHub Release не опубликован или отсутствует" >&2
+            exit 1
+          }
+          echo "PACKAGE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "DMG_FILE=RemoteAI-${TAG#v}-macOS.dmg" >> "$GITHUB_ENV"
+          echo "OCI_REPOSITORY=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Загрузка DMG и SHA-256 от GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release download "$PACKAGE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "$DMG_FILE" \
+            --pattern "SHA256SUMS.txt" \
+            --dir .
+          [[ -s "$DMG_FILE" && -s SHA256SUMS.txt ]] || {
+            echo "::error::DMG или контрольные суммы отсутствуют в GitHub Release" >&2
+            exit 1
+          }
+          grep -F "  $DMG_FILE" SHA256SUMS.txt | sha256sum --check --status || {
+            echo "::error::SHA-256 DMG не соответствует релизу" >&2
+            exit 1
+          }
+          echo "Проверена SHA-256: $DMG_FILE"
+
+      - name: Публикация OCI-пакета в GHCR
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          IMAGE="$OCI_REPOSITORY:$PACKAGE_TAG"
+          if oras manifest fetch "$IMAGE" >/dev/null 2>&1; then
+            echo "::error::OCI package $IMAGE уже существует; версионный тег не перезаписываем" >&2
+            exit 1
+          fi
+          oras push "$IMAGE" \
+            --artifact-type "application/vnd.f2re.remoteai.macos-dmg.v1" \
+            --annotation "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --annotation "org.opencontainers.image.version=$PACKAGE_TAG" \
+            --annotation "org.opencontainers.image.title=Remote AI macOS DMG" \
+            "$DMG_FILE:application/x-apple-diskimage" \
+            "SHA256SUMS.txt:text/plain"
+
+      - name: Верификация опубликованного пакета
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="$OCI_REPOSITORY:$PACKAGE_TAG"
+          oras manifest fetch "$IMAGE" >/dev/null
+          mkdir -p "$RUNNER_TEMP/oci-verify"
+          oras pull "$IMAGE" -o "$RUNNER_TEMP/oci-verify"
+          cmp "$DMG_FILE" "$RUNNER_TEMP/oci-verify/$DMG_FILE"
+          test -s "$RUNNER_TEMP/oci-verify/SHA256SUMS.txt"
+          echo "Пакет опубликован и проверен: $IMAGE"
+          echo "### GitHub Packages" >> "$GITHUB_STEP_SUMMARY"
+          echo "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
+          echo "OCI содержит DMG с совпадающей SHA-256." >> "$GITHUB_STEP_SUMMARY"

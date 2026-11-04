@@ -305,3 +305,12 @@ jobs:
         run: |
           security delete-keychain "$RUNNER_TEMP/remote-ai-signing.keychain-db" >/dev/null 2>&1 || true
           rm -f "$RUNNER_TEMP/remote-ai-certificate.p12"
+
+  package:
+    name: Публикация проверенного DMG в GHCR
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/publish-v')
+    needs: release
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/packages.yml

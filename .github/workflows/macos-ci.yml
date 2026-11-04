@@ -37,6 +37,7 @@ jobs:
           bash -n tools/test-release-policy.sh
           bash -n tools/create-dmg.sh
           ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/release.yml")'
+          ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/packages.yml")'
 
       - name: Проверка единой версии и release notes
         shell: bash
