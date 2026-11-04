@@ -1,0 +1,10 @@
+<RCC>
+  <qresource prefix="/mascot">
+    <file alias="offline.png">../../Sources/RemoteAI/Resources/Mascot/mascot-offline.png</file>
+    <file alias="connecting.png">../../Sources/RemoteAI/Resources/Mascot/mascot-connecting.png</file>
+    <file alias="syncing.png">../../Sources/RemoteAI/Resources/Mascot/mascot-syncing.png</file>
+    <file alias="thinking.png">../../Sources/RemoteAI/Resources/Mascot/mascot-thinking.png</file>
+    <file alias="waiting.png">../../Sources/RemoteAI/Resources/Mascot/mascot-waiting.png</file>
+    <file alias="error.png">../../Sources/RemoteAI/Resources/Mascot/mascot-error.png</file>
+  </qresource>
+</RCC>
