@@ -109,7 +109,7 @@ GitHub Actions secrets:
 
 При полном наборе credentials workflow импортирует сертификат во временный keychain, подписывает приложение с Hardened Runtime и timestamp, отправляет ZIP приложения в `notarytool`, выполняет staple/validate и Gatekeeper verification. После этого создаётся DMG, подписывается той же Developer ID identity, отдельно отправляется в `notarytool` и получает staple ticket. После выполнения job временный keychain и копия сертификата удаляются.
 
-**Публичные выпуски теперь fail-closed.** Если хотя бы одного из пяти секретов нет, ветка `release/publish-v*` или внешний тег `v*` не публикуются. Если настроена только часть секретов, падает даже dry run с объяснением причины. Ручной `workflow_dispatch` и непубликующие ветки `release/**` могут создавать ad-hoc signed кандидаты только при полном отсутствии секретов; такие кандидаты никогда не становятся GitHub Release.
+**Стабильные выпуски fail-closed.** Если хотя бы одного из пяти секретов нет, ветка `release/publish-vMAJOR.MINOR.PATCH` или стабильный тег `vMAJOR.MINOR.PATCH` не публикуются. Только явно обозначенные версии `-rc.N` допускают предварительную публикацию без Apple credentials, с обязательной пометкой Pre-release и предупреждением об отсутствии notarization. Если настроена только часть секретов, падает даже dry run. Ручной `workflow_dispatch` и обычные непубликующие ветки `release/**` создают только кандидаты без GitHub Release.
 
 ## Первичная настройка Apple Developer ID (один раз)
 
