@@ -183,6 +183,14 @@ jobs:
           unzip -t "$APP_ZIP"
           echo "APP_NOTARIZED_RELEASE=1" >> "$GITHUB_ENV"
 
+      - name: Установка headless DMG layout (dmgbuild 1.6.7)
+        shell: bash
+        run: |
+          python3 -m venv "$RUNNER_TEMP/dmgbuild-venv"
+          "$RUNNER_TEMP/dmgbuild-venv/bin/python" -m pip install \
+            --disable-pip-version-check "dmgbuild==1.6.7"
+          echo "DMGBUILD_BIN=$RUNNER_TEMP/dmgbuild-venv/bin/dmgbuild" >> "$GITHUB_ENV"
+
       - name: Создание DMG
         shell: bash
         run: |
