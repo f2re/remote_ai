@@ -1,6 +1,7 @@
 name: Astra Linux — Qt5 compatibility and DEB
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'linux/**'
