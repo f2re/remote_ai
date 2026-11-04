@@ -3,14 +3,14 @@ name: Astra Linux — compatibility preview Release + GHCR
 on:
   push:
     branches:
-      - "astra/publish-preview-0.3.0-rc1"
+      - "astra/publish-preview-0.3.0-rc2"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: astra-preview-0.3.0-rc1
+  group: astra-preview-0.3.0-rc2
   cancel-in-progress: false
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
               echo "::error::Manual preview release must run on main" >&2; exit 1
             }
           else
-            [[ "$GITHUB_REF_NAME" == "astra/publish-preview-0.3.0-rc1" ]] || exit 1
+            [[ "$GITHUB_REF_NAME" == "astra/publish-preview-0.3.0-rc2" ]] || exit 1
           fi
           git fetch origin main
           [[ "$GITHUB_SHA" == "$(git rev-parse origin/main)" ]] || {
@@ -54,8 +54,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       OCI_TOKEN: ${{ github.token }}
-      TAG: astra-preview-0.3.0-rc1
-      OCI_VERSION: 0.3.0-rc1
+      TAG: astra-preview-0.3.0-rc2
+      OCI_VERSION: 0.3.0-rc2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -73,14 +73,23 @@ jobs:
             [[ -n "$DEB" && -s "$DEB" ]] || {
               echo "::error::DEB missing for $target" >&2; exit 1
             }
-            cp "$DEB" debs/
+            EXPECTED="0.3.0~rc2-1+$target"
+            [[ "$(dpkg-deb -f "$DEB" Version)" == "$EXPECTED" ]] || {
+              echo "::error::Debian control Version does not match preview release $EXPECTED" >&2
+              exit 1
+            }
+            # GitHub Releases replaces '~' in uploaded asset names. Canonicalize
+            # BEFORE computing checksums, OCI publication, and Release upload.
+            CANONICAL="$(basename "$DEB" | tr '~' '-')"
+            cp "$DEB" "debs/$CANONICAL"
             count=$((count + 1))
           done
           [[ "$count" == 2 ]] || exit 1
           (cd debs && sha256sum ./*.deb > SHA256SUMS.txt)
           printf '%s\n' \
-            '# Remote AI Astra — compatibility preview 0.3.0-rc1' \
+            '# Remote AI Astra — compatibility preview 0.3.0-rc2' \
             '' \
+            'Replaces rc1: GitHub renamed ~ in DEB asset filenames, invalidating the first preview checksums.' \
             '**NOT tested natively on Astra Linux 1.7/1.8. NOT certified.**' \
             'These DEB files were built and tested against Debian 10 and Debian 12 compatibility baselines only.' \
             'Astra Fly GUI, installation and security-mode acceptance still require native Astra VM/runners.' \
@@ -128,6 +137,14 @@ jobs:
           gh release create "$TAG" \
             debs/*.deb debs/SHA256SUMS.txt \
             --target "$GITHUB_SHA" \
-            --title "Remote AI Astra preview 0.3.0-rc1 (Debian compatibility only)" \
+            --title "Remote AI Astra preview 0.3.0-rc2 (Debian compatibility only)" \
             --notes-file debs/RELEASE-NOTES.md \
             --prerelease
+          mkdir -p "$RUNNER_TEMP/release-verify"
+          gh release download "$TAG" --dir "$RUNNER_TEMP/release-verify" \
+            --pattern '*.deb' --pattern 'SHA256SUMS.txt'
+          (cd "$RUNNER_TEMP/release-verify" && sha256sum --check SHA256SUMS.txt)
+          for file in debs/*.deb; do
+            cmp "$file" "$RUNNER_TEMP/release-verify/$(basename "$file")"
+          done
+          echo "GitHub Release assets reverse-download and SHA256 verified." >> "$GITHUB_STEP_SUMMARY"
