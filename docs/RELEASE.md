@@ -21,6 +21,21 @@ Feature-branch push не дублирует тяжёлую Universal-сборк�
 
 Обычная ветка `release/**`, не совпадающая с `release/publish-v*`, либо ручной запуск workflow **«Релиз»** создаёт проверенный release candidate, но не публикует GitHub Release.
 
+## Публичный release candidate без Apple Developer ID
+
+Для технической приёмки разрешён **только явный предварительный выпуск** с номером `vMAJOR.MINOR.PATCH-rc.N`. Он получает пометку **Pre-release** и предупреждение об отсутствии Apple Developer ID/notarization. Наличие хотя бы одного неполного Apple secret всё равно блокирует сборку. Стабильные теги `vMAJOR.MINOR.PATCH` продолжают требовать полную Apple подпись и notarization.
+
+После успешного macOS CI создайте ветку из текущего `main`:
+
+```bash
+git switch main
+git pull --ff-only
+git switch -c release/prerelease-v0.2.3-rc.1
+git push -u origin release/prerelease-v0.2.3-rc.1
+```
+
+Этот push собирает DMG/ZIP, проверяет приложение, затем создаёт тег `v0.2.3-rc.1` и GitHub Release **Pre-release** с русскими заметками `docs/releases/v0.2.3-rc.1.md`. Следующий job публикует тот же DMG в GitHub Packages / GHCR. Подписанный стабильный `v0.2.3` выпустите позднее только с действительным сертификатом Apple. Бинарник unsigned RC **не** должен называться notarized, trusted или stable.
+
 ## Публикация — основной путь
 
 **Только после** успешного тестового notarization и добавления `docs/releases/v0.2.3.md` с соответствующим изменением версии создайте publish-ветку. Без Apple credentials release gate отклонит публикацию до создания нового тега.
@@ -94,7 +109,7 @@ GitHub Actions secrets:
 
 При полном наборе credentials workflow импортирует сертификат во временный keychain, подписывает приложение с Hardened Runtime и timestamp, отправляет ZIP приложения в `notarytool`, выполняет staple/validate и Gatekeeper verification. После этого создаётся DMG, подписывается той же Developer ID identity, отдельно отправляется в `notarytool` и получает staple ticket. После выполнения job временный keychain и копия сертификата удаляются.
 
-**Публичные выпуски теперь fail-closed.** Если хотя бы одного из пяти секретов нет, ветка `release/publish-v*` или внешний тег `v*` не публикуются. Если настроена только часть секретов, падает даже dry run с объяснением причины. Ручной `workflow_dispatch` и непубликующие ветки `release/**` могут создавать ad-hoc signed кандидаты только при полном отсутствии секретов; такие кандидаты никогда не становятся GitHub Release.
+**Стабильные выпуски fail-closed.** Если хотя бы одного из пяти секретов нет, ветка `release/publish-vMAJOR.MINOR.PATCH` или стабильный тег `vMAJOR.MINOR.PATCH` не публикуются. Только явно обозначенные версии `-rc.N` допускают предварительную публикацию без Apple credentials, с обязательной пометкой Pre-release и предупреждением об отсутствии notarization. Если настроена только часть секретов, падает даже dry run. Ручной `workflow_dispatch` и обычные непубликующие ветки `release/**` создают только кандидаты без GitHub Release.
 
 ## Первичная настройка Apple Developer ID (один раз)
 

@@ -48,7 +48,7 @@ jobs:
           elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             TAG="$GITHUB_REF_NAME"
           else
-            [[ "$GITHUB_REF_NAME" =~ ^(packages|release)/publish-(v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?)$ ]] || {
+            [[ "$GITHUB_REF_NAME" =~ ^(packages/publish|release/publish|release/prerelease)-(v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?)$ ]] || {
               echo "::error::Некорректная ветка публикации пакета" >&2
               exit 1
             }
