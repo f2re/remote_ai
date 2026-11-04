@@ -89,6 +89,7 @@ jobs:
           printf '%s\n' \
             '# Remote AI Astra — compatibility preview 0.3.0-rc2' \
             '' \
+            'Replaces rc1: GitHub renamed ~ in DEB asset filenames, invalidating the first preview checksums.' \
             '**NOT tested natively on Astra Linux 1.7/1.8. NOT certified.**' \
             'These DEB files were built and tested against Debian 10 and Debian 12 compatibility baselines only.' \
             'Astra Fly GUI, installation and security-mode acceptance still require native Astra VM/runners.' \
