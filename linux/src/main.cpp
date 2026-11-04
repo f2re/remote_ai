@@ -363,6 +363,15 @@ int main(int argc, char **argv) {
     QApplication::setApplicationName(QStringLiteral("Remote AI Astra"));
     QApplication::setOrganizationName(QStringLiteral("RemoteAI"));
     QApplication::setQuitOnLastWindowClosed(false);
+    if (app.arguments().contains(QStringLiteral("--smoke"))) {
+        for (const QString &sprite : {QStringLiteral("offline"), QStringLiteral("connecting"),
+                QStringLiteral("syncing"), QStringLiteral("thinking"),
+                QStringLiteral("waiting"), QStringLiteral("error")}) {
+            if (QPixmap(QStringLiteral(":/mascot/") + sprite + QStringLiteral(".png")).isNull()) {
+                return 3; // Неполный ресурсный набор маскота должен блокировать пакет.
+            }
+        }
+    }
     MascotWindow mascot;
     mascot.show();
     if (app.arguments().contains(QStringLiteral("--smoke"))) {
