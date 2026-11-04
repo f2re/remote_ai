@@ -5,7 +5,7 @@ set -euo pipefail
 target="${1:?Usage: build-deb.sh debian10|debian12}"
 case "$target" in
   debian10)
-    printf 'deb http://archive.debian.org/debian buster main\n' >/etc/apt/sources.list
+    printf 'deb http://archive.debian.org/debian buster main\ndeb http://archive.debian.org/debian-security buster/updates main\n' >/etc/apt/sources.list
     rm -f /etc/apt/sources.list.d/* || true
     apt-get -o Acquire::Check-Valid-Until=false update
     ;;
@@ -13,7 +13,7 @@ case "$target" in
   *) echo "Unknown compatibility baseline: $target" >&2; exit 2 ;;
 esac
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-  ca-certificates cmake make g++ qtbase5-dev dpkg-dev desktop-file-utils
+  ca-certificates cmake make g++ qtbase5-dev dpkg-dev desktop-file-utils file
 cmake -S /src/linux -B /tmp/rai-build \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DASTRA_TARGET="$target"
 cmake --build /tmp/rai-build --parallel 2
