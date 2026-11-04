@@ -1,0 +1,133 @@
+name: Astra Linux — compatibility preview Release + GHCR
+
+on:
+  push:
+    branches:
+      - "astra/publish-preview-0.3.0-rc1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: astra-preview-0.3.0-rc1
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Check release source and scope
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require latest main and controlled preview ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$GITHUB_REF" == "refs/heads/main" ]] || {
+              echo "::error::Manual preview release must run on main" >&2; exit 1
+            }
+          else
+            [[ "$GITHUB_REF_NAME" == "astra/publish-preview-0.3.0-rc1" ]] || exit 1
+          fi
+          git fetch origin main
+          [[ "$GITHUB_SHA" == "$(git rev-parse origin/main)" ]] || {
+            echo "::error::Preview release must build the latest main SHA" >&2
+            exit 1
+          }
+
+  build:
+    needs: validate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/astra-ci.yml
+
+  publish:
+    name: Publish explicitly labelled Debian compatibility packages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OCI_TOKEN: ${{ github.token }}
+      TAG: astra-preview-0.3.0-rc1
+      OCI_VERSION: 0.3.0-rc1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: remote-ai-astra-*-compat-*
+          path: artifacts
+      - name: Collect two reviewed compatibility packages and SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p debs
+          count=0
+          for target in debian10 debian12; do
+            DEB="$(find "artifacts/remote-ai-astra-${target}-compat-${GITHUB_RUN_NUMBER}" -maxdepth 1 -type f -name '*.deb' -print -quit)"
+            [[ -n "$DEB" && -s "$DEB" ]] || {
+              echo "::error::DEB missing for $target" >&2; exit 1
+            }
+            cp "$DEB" debs/
+            count=$((count + 1))
+          done
+          [[ "$count" == 2 ]] || exit 1
+          (cd debs && sha256sum ./*.deb > SHA256SUMS.txt)
+          printf '%s\n' \
+            '# Remote AI Astra — compatibility preview 0.3.0-rc1' \
+            '' \
+            '**NOT tested natively on Astra Linux 1.7/1.8. NOT certified.**' \
+            'These DEB files were built and tested against Debian 10 and Debian 12 compatibility baselines only.' \
+            'Astra Fly GUI, installation and security-mode acceptance still require native Astra VM/runners.' \
+            '' \
+            'Contains a Qt5 mascot, 6 shared sprites, SSH/tmux control and initial Mutagen two-way-safe integration.' \
+            'Open GitHub issues #37–#40 for remaining native integration and testing.' \
+            > debs/RELEASE-NOTES.md
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v2.0.3
+        with:
+          version: "1.3.6"
+      - name: Publish both DEB OCI artifact tags and verify reverse pull
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$OCI_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}-astra"
+          for target in debian10 debian12; do
+            DEB="$(find debs -maxdepth 1 -type f -name "*+${target}_amd64.deb" -print -quit)"
+            [[ -n "$DEB" ]] || {
+              echo "::error::Version-labelled .deb not found for $target" >&2; exit 1
+            }
+            TAGGED="$IMAGE:${target}-$OCI_VERSION"
+            if oras manifest fetch "$TAGGED" >/dev/null 2>&1; then
+              echo "::error::Refuse OCI version overwrite: $TAGGED" >&2; exit 1
+            fi
+            (cd debs && oras push "$TAGGED" \
+              --artifact-type application/vnd.f2re.remoteai.deb.v1 \
+              --annotation "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+              --annotation "org.opencontainers.image.version=$OCI_VERSION" \
+              --annotation "org.opencontainers.image.description=Debian $target compatibility preview; NOT validated on Astra" \
+              "$(basename "$DEB"):application/vnd.debian.binary-package")
+            mkdir -p "$RUNNER_TEMP/verify-$target"
+            oras pull "$TAGGED" -o "$RUNNER_TEMP/verify-$target"
+            cmp "$DEB" "$RUNNER_TEMP/verify-$target/$(basename "$DEB")"
+            echo "OCI package verified: $TAGGED" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Publish GitHub Preview Release with DEB and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Refuse overwrite of existing preview release $TAG" >&2; exit 1
+          fi
+          gh release create "$TAG" \
+            debs/*.deb debs/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" \
+            --title "Remote AI Astra preview 0.3.0-rc1 (Debian compatibility only)" \
+            --notes-file debs/RELEASE-NOTES.md \
+            --prerelease
