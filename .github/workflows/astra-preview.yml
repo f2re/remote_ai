@@ -107,12 +107,12 @@ jobs:
             if oras manifest fetch "$TAGGED" >/dev/null 2>&1; then
               echo "::error::Refuse OCI version overwrite: $TAGGED" >&2; exit 1
             fi
-            oras push "$TAGGED" \
+            (cd debs && oras push "$TAGGED" \
               --artifact-type application/vnd.f2re.remoteai.deb.v1 \
               --annotation "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
               --annotation "org.opencontainers.image.version=$OCI_VERSION" \
               --annotation "org.opencontainers.image.description=Debian $target compatibility preview; NOT validated on Astra" \
-              "$DEB:application/vnd.debian.binary-package"
+              "$(basename "$DEB"):application/vnd.debian.binary-package")
             mkdir -p "$RUNNER_TEMP/verify-$target"
             oras pull "$TAGGED" -o "$RUNNER_TEMP/verify-$target"
             cmp "$DEB" "$RUNNER_TEMP/verify-$target/$(basename "$DEB")"
