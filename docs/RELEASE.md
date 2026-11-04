@@ -60,6 +60,16 @@ Release workflow:
 
 Поддерживается и ручной `v*` tag, но его target обязан входить в `main`. Для него используется тот же release gate и тот же `docs/releases/<tag>.md`.
 
+## GitHub Packages: OCI-пакет установщика
+
+GitHub Releases и GitHub Packages — независимые разделы GitHub. DMG из Release сам по себе **не публикуется** в Packages. Для этого в репозитории настроен отдельный workflow `.github/workflows/packages.yml`: он скачивает DMG и `SHA256SUMS.txt` из уже опубликованного GitHub Release, проверяет SHA-256, затем с помощью ORAS публикует оба файла как **OCI-артефакт** в GitHub Container Registry (GHCR). После записи workflow скачивает пакет обратно и сравнивает байты DMG.
+
+Адрес пакета: `ghcr.io/f2re/remote_ai:<tag>` (например, `ghcr.io/f2re/remote_ai:v0.2.2`). Используется `GITHUB_TOKEN` с разрешениями `contents: read` и `packages: write`, без личных PAT. В OCI metadata включена ссылка `org.opencontainers.image.source` на этот репозиторий, чтобы пакет привязывался к нему. Первый пакет в GHCR может быть создан **приватным**: если он должен быть общедоступным, измените visibility в настройках пакета GitHub.
+
+Для повторной загрузки существующего релиза v0.2.2 предусмотрена одноразовая ветка `packages/publish-v0.2.2` от `main`. Она не изменяет сам GitHub Release, не пересобирает и не переподписывает DMG. Повторное использование занятого OCI-тега отклоняется, чтобы не перезаписывать поставленные версии.
+
+Важно: **OCI-пакет не является Docker-приложением**. Скачивать и устанавливать DMG на macOS удобнее через GitHub Releases. OCI здесь — дополнительное хранилище проверенных установщиков и отображение версии на вкладке Packages.
+
 ## Assets
 
 Успешный выпуск прикладывает:
