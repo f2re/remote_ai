@@ -25,6 +25,7 @@ concurrency:
 jobs:
   package:
     name: DMG → OCI/GHCR
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
