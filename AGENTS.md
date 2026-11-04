@@ -44,3 +44,11 @@ swift test
 ```
 
 Каждая функция должна сохранять детерминированные и тестируемые state transitions без обязательного живого сервера. Remote integration tests выполняются отдельно.
+
+## Astra Linux (новый порт)
+
+Linux-клиент Qt5/C++17 находится в `linux/`. Не пытайтесь компилировать AppKit/SwiftUI для Linux: общими остаются контракты поведения и шесть PNG. Документация: `linux/README.md`, `docs/ASTRA-IMPLEMENTATION.md`.
+
+Роли Linux: `astra-ui` (#37), `astra-runtime` (#38), `debian-packaging` (#39), `astra-ci-qa` (#40). Работа только в собственных Git worktrees и отдельными PR. CMake/CTest: `cmake -S linux -B /tmp/rai-astra-build && cmake --build /tmp/rai-astra-build && ctest --test-dir /tmp/rai-astra-build --output-on-failure`.
+
+**Обязательный запрет:** результаты Debian 10/12 compatibility proxy нельзя называть нативно проверенными DEB для Astra 1.7/1.8. Для такого утверждения нужны реальные Astra Linux runners/VM и Fly GUI acceptance. Никогда не ослабляйте SSH host-key verification и не теряйте Mutagen two-way-safe/flush.
