@@ -49,7 +49,14 @@ case_policy "четыре credentials запрещены в publish" fail - bran
 case_policy "некорректный флаг secrets запрещён" fail - branch main 0.2.3 malformed
 case_policy "неверная версия для publish" fail - branch release/publish-v0.2.3 0.2.2 all
 case_policy "неверная версия для tag" fail - tag v0.2.3 0.2.2 all
-case_policy "неверная семантика tag" fail - tag v0.2.3-rc.1 0.2.3-rc.1 all
+case_policy "rc tag с подписью разрешён" ok 1 tag v0.2.3-rc.1 0.2.3-rc.1 all
+case_policy "rc tag без Apple credentials разрешён" ok 0 tag v0.2.3-rc.1 0.2.3-rc.1 none
+case_policy "explicit prerelease branch без Apple credentials" ok 0 branch release/prerelease-v0.2.3-rc.1 0.2.3-rc.1 none
+case_policy "explicit prerelease branch с Apple credentials" ok 1 branch release/prerelease-v0.2.3-rc.1 0.2.3-rc.1 all
+case_policy "prerelease partial credentials запрещены" fail - branch release/prerelease-v0.2.3-rc.1 0.2.3-rc.1 partial
+case_policy "prerelease branch без rc запрещена" fail - branch release/prerelease-v0.2.3 0.2.3 none
+case_policy "prerelease branch с подменённой версией запрещена" fail - branch release/prerelease-v0.2.3-rc.1 0.2.3-rc.2 none
+case_policy "стабильный тег без подписи по-прежнему запрещён" fail - tag v0.2.3 0.2.3 none
 case_policy "постороннее имя publish" fail - branch release/publish-v0.2.3-evil 0.2.3-rc.1 all
 case_policy "инъекция в input версии запрещена" fail - branch main '0.2.3"; echo unsafe' all
 case_policy "пустая версия запрещена" fail - branch main "" all
