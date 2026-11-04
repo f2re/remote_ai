@@ -21,6 +21,21 @@ Feature-branch push не дублирует тяжёлую Universal-сборк�
 
 Обычная ветка `release/**`, не совпадающая с `release/publish-v*`, либо ручной запуск workflow **«Релиз»** создаёт проверенный release candidate, но не публикует GitHub Release.
 
+## Публичный release candidate без Apple Developer ID
+
+Для технической приёмки разрешён **только явный предварительный выпуск** с номером `vMAJOR.MINOR.PATCH-rc.N`. Он получает пометку **Pre-release** и предупреждение об отсутствии Apple Developer ID/notarization. Наличие хотя бы одного неполного Apple secret всё равно блокирует сборку. Стабильные теги `vMAJOR.MINOR.PATCH` продолжают требовать полную Apple подпись и notarization.
+
+После успешного macOS CI создайте ветку из текущего `main`:
+
+```bash
+git switch main
+git pull --ff-only
+git switch -c release/prerelease-v0.2.3-rc.1
+git push -u origin release/prerelease-v0.2.3-rc.1
+```
+
+Этот push собирает DMG/ZIP, проверяет приложение, затем создаёт тег `v0.2.3-rc.1` и GitHub Release **Pre-release** с русскими заметками `docs/releases/v0.2.3-rc.1.md`. Следующий job публикует тот же DMG в GitHub Packages / GHCR. Подписанный стабильный `v0.2.3` выпустите позднее только с действительным сертификатом Apple. Бинарник unsigned RC **не** должен называться notarized, trusted или stable.
+
 ## Публикация — основной путь
 
 **Только после** успешного тестового notarization и добавления `docs/releases/v0.2.3.md` с соответствующим изменением версии создайте publish-ветку. Без Apple credentials release gate отклонит публикацию до создания нового тега.
